@@ -8,8 +8,8 @@ export const mockUsers = [
 ];
 
 export const mockGroups = [
-  { id: 'BTF046', name: 'BTF046', members: 4, status: 'Schedule Workshop', mentor: 'Anita Pickard' },
-  { id: 'BTF001', name: 'BTF001', members: 5, status: 'Schedule Workshop', mentor: 'Anita Pickard' }
+  { id: 'BTF046', name: 'BTF046', members: 4, status: 'Schedule Event', mentor: 'Anita Pickard' },
+  { id: 'BTF001', name: 'BTF001', members: 5, status: 'Schedule Event', mentor: 'Anita Pickard' }
 ];
 
 export const mockResources = [
@@ -24,7 +24,7 @@ export const mockResources = [
 // ★ 补充这个：
 export const mockEvents = [
   { id: 1, title: 'Program Kickoff',            date: '2025-09-15', time: '10:00 AM', location: 'Sydney University', type: 'in-person' },
-  { id: 2, title: 'Mentor Training Workshop',   date: '2025-09-20', time: '2:00 PM',  location: 'Online',            type: 'virtual'   },
+  { id: 2, title: 'Mentor Training Event',   date: '2025-09-20', time: '2:00 PM',  location: 'Online',            type: 'virtual'   },
   { id: 3, title: 'Student Orientation',        date: '2025-09-22', time: '3:00 PM',  location: 'Online',            type: 'virtual'   },
   { id: 4, title: 'Mid-Program Check-in',       date: '2025-10-15', time: '4:00 PM',  location: 'Online',            type: 'virtual'   },
   { id: 5, title: 'Final Presentations',        date: '2025-11-20', time: '9:00 AM',  location: 'Sydney University', type: 'in-person' }
@@ -52,7 +52,7 @@ export const mockAnnouncements = [
     title: 'Submission Rubrics Updated',
     date: '2025-09-04T10:30:00+10:00',
     author: 'Academic Committee',
-    summary: 'We have refined scoring criteria. Please review before planning your workshops.',
+    summary: 'We have refined scoring criteria. Please review before planning your events.',
     route: null // 预留：若将来有内部详情页，可填 '/announcements/103'
   }
 ]
