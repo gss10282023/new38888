@@ -15,7 +15,12 @@
 
     <div class="card" v-for="a in filtered" :key="a.id" style="margin-bottom:1rem;">
       <div class="card-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">
-        <h3 class="card-title" style="margin:0;">{{ a.title }}</h3>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <h3 class="card-title" style="margin:0;">{{ a.title }}</h3>
+          <span class="status-badge" :class="getAudienceClass(a.audience)">
+            {{ getAudienceLabel(a.audience) }}
+          </span>
+        </div>
       </div>
       <div style="color:#6c757d;margin:0.25rem 0 1rem;">
         {{ formatDate(a.date) }} · {{ a.author || 'Program Team' }}
@@ -64,5 +69,27 @@ const filtered = computed(() => {
 const formatDate = (iso) => {
   const d = new Date(iso)
   return d.toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+const getAudienceLabel = (audience) => {
+  const labels = {
+    'all': 'All Users',
+    'student': 'Student',
+    'mentor': 'Mentor',
+    'supervisor': 'Supervisor',
+    'admin': 'Admin'
+  }
+  return labels[audience] || 'Unknown'
+}
+
+const getAudienceClass = (audience) => {
+  const classes = {
+    'all': 'status-active',
+    'student': 'status-info',
+    'mentor': 'status-warning',
+    'supervisor': 'status-pending',
+    'admin': 'status-danger'
+  }
+  return classes[audience] || 'status-active'
 }
 </script>
