@@ -56,3 +56,4 @@ export const mockAnnouncements = [
     route: null // 预留：若将来有内部详情页，可填 '/announcements/103'
   }
 ]
+ 
