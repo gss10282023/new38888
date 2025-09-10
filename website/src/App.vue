@@ -80,7 +80,7 @@ const go = (path) => {
               class="sidebar-link"
               :class="{ active: route.path === '/events' }"
             >
-              <i class="fas fa-calendar sidebar-icon"></i><span>Workshops</span>
+              <i class="fas fa-calendar sidebar-icon"></i><span>Events</span>
             </RouterLink>
           </li>
 
@@ -104,7 +104,7 @@ const go = (path) => {
             </RouterLink>
           </li>
 
-          <li class="sidebar-item">
+          <li class="sidebar-item" v-if="auth.isAdmin">
             <RouterLink
               to="/admin"
               class="sidebar-link"
