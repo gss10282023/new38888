@@ -2,9 +2,10 @@
 Django settings for btf_backend project.
 """
 
-from pathlib import Path
-from datetime import timedelta
 import os
+import sys
+from datetime import timedelta
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -88,6 +89,12 @@ DATABASES = {
     }
 }
 
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'test_db.sqlite3',
+    }
+
 # Redis Cache
 CACHES = {
     'default': {
@@ -166,6 +173,10 @@ CORS_ALLOW_CREDENTIALS = True
 # Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@biotechfutures.org')
+
+# Frontend + Authentication configuration
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://yourdomain.com')
+MAGIC_LINK_EXPIRY_SECONDS = int(os.getenv('MAGIC_LINK_EXPIRY_SECONDS', '600'))
 
 # DRF Spectacular (OpenAPI) Settings
 SPECTACULAR_SETTINGS = {
