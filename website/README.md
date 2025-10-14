@@ -12,6 +12,7 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 
 ## Project Setup
 
+
 ```sh
 npm install
 ```
