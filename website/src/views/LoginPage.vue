@@ -34,55 +34,64 @@
           <p class="login-subtitle">Welcome! Please sign in to continue.</p>
         </div>
 
-        <form @submit.prevent="handleLogin">
-          <div class="form-group">
-            <label class="form-label">Email Address</label>
-            <input
-              type="email"
-              v-model="email"
+<form @submit.prevent="handleLogin">
+  <div class="form-group">
+    <label class="form-label">Email Address</label>
+    <input
+      type="email"
+      v-model="email"
               class="form-control"
               placeholder="Enter your email"
               required
             />
             <small class="form-text">We’ll send you a magic link to sign in</small>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
-            <span v-if="!loading">Send Login Link</span>
-            <span v-else class="loading"></span>
-          </button>
-        </form>
+<button type="submit" class="btn btn-primary btn-lg" style="width: 100%;" :disabled="loading">
+  <span v-if="!loading">Send Login Link</span>
+  <span v-else class="loading"></span>
+</button>
+</form>
 
-        <div v-if="showOTP" class="otp-section">
-          <p style="text-align: center; margin: 1.5rem 0;">
-            Click the link in your email to sign in directly, or enter your 6-digit code below
-          </p>
-          <div class="otp-container">
-            <input
-              v-for="i in 6"
-              :key="i"
-              type="text"
-              maxlength="1"
-              class="otp-input"
-              @input="handleOTPInput($event, i)"
-            />
-          </div>
-          <button @click="verifyOTP" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
-            Verify Code
-          </button>
-
-          <div style="text-align: center; margin-top: 0.75rem;">
-            <button class="linklike" type="button" @click="resendCode">Resend Code</button>
-          </div>
-
-          <p v-if="error" style="color:#dc3545; text-align:center; margin-top:0.75rem;">{{ error }}</p>
-        </div>
-      </div>
-    </section>
+<div v-if="showOTP" class="otp-section">
+  <p style="text-align: center; margin: 1.5rem 0;">
+    Click the link in your email to sign in directly, or enter your 6-digit code below
+  </p>
+  <div class="otp-container">
+    <input
+      v-for="idx in 6"
+      :key="idx"
+      type="text"
+      maxlength="1"
+      class="otp-input"
+      @input="handleOTPInput($event, idx - 1)"
+    />
   </div>
+  <button
+    @click="verifyOTP"
+    class="btn btn-primary"
+    style="width: 100%; margin-top: 1rem;"
+    :disabled="verifying"
+  >
+    <span v-if="!verifying">Verify Code</span>
+    <span v-else class="loading"></span>
+  </button>
+
+  <div style="text-align: center; margin-top: 0.75rem;">
+    <button class="linklike" type="button" @click="resendCode" :disabled="loading">
+      Resend Code
+    </button>
+  </div>
+
+  <p v-if="error" style="color:#dc3545; text-align:center; margin-top:0.75rem;">{{ error }}</p>
+  <p v-if="message" style="color:#198754; text-align:center; margin-top:0.75rem;">{{ message }}</p>
+</div>
+</div>
+</section>
+</div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import logo from '@/assets/btf-logo.png'
@@ -93,7 +102,10 @@ const auth = useAuthStore()
 const email = ref('')
 const loading = ref(false)
 const showOTP = ref(false)
+const verifying = ref(false)
 const error = ref('')
+const message = ref('')
+const otpDigits = ref(Array(6).fill(''))
 
 /**
  * 左侧介绍区可自定义的 HTML（示例占位）
@@ -116,33 +128,82 @@ const leftHtml = ref(`
   </p>
 `)
 
-const handleLogin = () => {
+const focusFirstOtp = () => {
+  const firstInput = document.querySelector('.otp-input')
+  firstInput?.focus()
+}
+
+const handleLogin = async () => {
   error.value = ''
+  message.value = ''
   loading.value = true
-  setTimeout(() => {
+  try {
+    await auth.requestMagicLink(email.value)
     loading.value = false
     showOTP.value = true
-  }, 600)
+    otpDigits.value = Array(6).fill('')
+    await nextTick()
+    focusFirstOtp()
+    message.value = 'Magic link sent! Please check your inbox for the 6-digit code.'
+  } catch (err) {
+    loading.value = false
+    error.value = err.message || 'Failed to send magic link.'
+  }
 }
 
 const handleOTPInput = (e, index) => {
-  if (e.target.value && index < 6) {
+  const numeric = e.target.value.replace(/\D/g, '').slice(-1)
+  e.target.value = numeric
+  otpDigits.value[index] = numeric
+  if (numeric && index < 5) {
     const inputs = e.target.parentElement.querySelectorAll('input')
-    inputs[index]?.focus()
+    inputs[index + 1]?.focus()
   }
 }
 
 // 点击 Verify 时真正“落地登录”
-const verifyOTP = () => {
+const verifyOTP = async () => {
+  error.value = ''
+  message.value = ''
+  const code = otpDigits.value.join('')
+  if (code.length !== 6) {
+    error.value = 'Please enter the 6-digit code.'
+    return
+  }
+
+  verifying.value = true
   try {
-    auth.loginByEmail(email.value) // 从 mockUsers 里找用户并入库（Pinia + localStorage）
+    await auth.verifyOtp(code, email.value)
+    verifying.value = false
     router.push('/dashboard')
   } catch (e) {
+    verifying.value = false
     error.value = e.message || 'Login failed'
   }
 }
 
-const resendCode = () => alert('Code resent to your email!')
+const resendCode = async () => {
+  error.value = ''
+  message.value = ''
+  loading.value = true
+  try {
+    await auth.requestMagicLink(email.value)
+    message.value = 'We’ve resent the magic link. Please check your inbox.'
+  } catch (err) {
+    error.value = err.message || 'Failed to resend magic link.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  if (auth.pendingEmail) {
+    email.value = auth.pendingEmail
+    showOTP.value = true
+    await nextTick()
+    focusFirstOtp()
+  }
+})
 </script>
 
 <style scoped>

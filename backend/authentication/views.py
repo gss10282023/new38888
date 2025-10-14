@@ -107,7 +107,7 @@ def request_magic_link(request):
 
     subject = "Login to BIOTech Futures Hub"
     message = (
-        f"Use the link or code below to access the BIOTech Futures Hub.\n\n"
+        f"Use the link or one-time code below to access the BIOTech Futures Hub.\n\n"
         f"Magic Link: {magic_link}\n"
         f"One-Time Code: {otp_code}\n\n"
         f"This link and code will expire in {MAGIC_LINK_TTL // 60} minutes."

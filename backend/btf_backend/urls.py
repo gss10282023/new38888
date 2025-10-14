@@ -23,6 +23,9 @@ urlpatterns = [
     # Authentication endpoints
     path('api/auth/', include('authentication.urls', namespace='authentication')),
 
+    # User profile endpoints
+    path('api/users/', include('users.urls', namespace='users')),
+
     # Health check endpoint
     path('api/health/', include('core.urls')),
 ]
