@@ -49,6 +49,15 @@ class GroupViewSet(viewsets.GenericViewSet):
             return TaskSerializer
         return GroupSummarySerializer
 
+    def list(self, request, *args, **kwargs):
+        """
+        Return the list of groups accessible to the authenticated user.
+        Admins/supervisors receive all groups, other users see only their own groups.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"groups": serializer.data}, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=["get"], url_path="my-groups")
     def my_groups(self, request):
         """

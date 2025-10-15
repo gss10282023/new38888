@@ -7,9 +7,13 @@ export const useGroupStore = defineStore('groups', {
     myGroups: [],
     myGroupsLoaded: false,
     loadingMyGroups: false,
+    allGroups: [],
+    allGroupsLoaded: false,
+    loadingAllGroups: false,
     loadingById: {},
     groupsById: {},
     errorMyGroups: null,
+    errorAllGroups: null,
     errorById: {}
   }),
   actions: {
@@ -17,9 +21,13 @@ export const useGroupStore = defineStore('groups', {
       this.myGroups = []
       this.myGroupsLoaded = false
       this.loadingMyGroups = false
+      this.allGroups = []
+      this.allGroupsLoaded = false
+      this.loadingAllGroups = false
       this.loadingById = {}
       this.groupsById = {}
       this.errorMyGroups = null
+      this.errorAllGroups = null
       this.errorById = {}
     },
 
@@ -54,6 +62,40 @@ export const useGroupStore = defineStore('groups', {
         throw error
       } finally {
         this.loadingMyGroups = false
+      }
+    },
+
+    async fetchAllGroups({ forceRefresh = false } = {}) {
+      if (this.loadingAllGroups) return this.allGroups
+      if (this.allGroupsLoaded && !forceRefresh) return this.allGroups
+
+      this.loadingAllGroups = true
+      this.errorAllGroups = null
+
+      try {
+        const auth = useAuthStore()
+        const response = await auth.authenticatedFetch('/groups/')
+        const data = await safeJson(response)
+        if (!response.ok) {
+          throw new Error(data?.error || '无法获取全部群组')
+        }
+
+        this.allGroups = Array.isArray(data?.groups) ? data.groups : []
+        this.allGroupsLoaded = true
+
+        this.allGroups.forEach((group) => {
+          const existing = this.groupsById[group.id]
+          this.groupsById[group.id] = existing
+            ? { ...existing, ...group }
+            : { ...group }
+        })
+
+        return this.allGroups
+      } catch (error) {
+        this.errorAllGroups = error
+        throw error
+      } finally {
+        this.loadingAllGroups = false
       }
     },
 

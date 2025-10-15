@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginPage from '../views/LoginPage.vue'
 import DashboardPage from '../views/DashboardPage.vue'
+import GroupsPage from '../views/GroupsPage.vue'
 import GroupDetailPage from '../views/GroupDetailPage.vue'
 import ResourcesPage from '../views/ResourcesPage.vue'
 import EventsPage from '../views/EventsPage.vue'
@@ -15,7 +16,7 @@ const router = createRouter({
     { path: '/login', component: LoginPage },
 
     { path: '/dashboard', component: DashboardPage },
-    { path: '/groups', component: DashboardPage },
+    { path: '/groups', component: GroupsPage },
     { path: '/groups/:id', component: GroupDetailPage },
 
     { path: '/resources', component: ResourcesPage },

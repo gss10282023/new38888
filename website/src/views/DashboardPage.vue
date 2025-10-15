@@ -15,8 +15,12 @@ const { user, isAdmin } = storeToRefs(auth)
 const effectiveIsAdmin = computed(() => (isAdmin?.value ?? (user.value?.role === 'admin')))
 
 const groupStore = useGroupStore()
-const { myGroups, loadingMyGroups } = storeToRefs(groupStore)
+const { myGroups, loadingMyGroups, allGroups, loadingAllGroups } = storeToRefs(groupStore)
 const groups = computed(() => myGroups.value || [])
+const adminGroups = computed(() => allGroups.value || [])
+const activeGroupCount = computed(() =>
+  effectiveIsAdmin.value ? adminGroups.value.length : groups.value.length
+)
 const resources = ref(mockResources)
 const announcements = ref(mockAnnouncements)
 const announcementsCount = computed(() => announcements.value.length)
@@ -36,11 +40,17 @@ const getResourceIcon = (type) => {
 
 const loadGroups = async (force = false) => {
   if (!auth.isAuthenticated) return
-  try {
-    await groupStore.fetchMyGroups({ forceRefresh: force })
-  } catch (error) {
-    console.error('Failed to load groups', error)
+  const tasks = []
+  if (effectiveIsAdmin.value) {
+    tasks.push(groupStore.fetchAllGroups({ forceRefresh: force }))
   }
+  tasks.push(groupStore.fetchMyGroups({ forceRefresh: force }))
+  const results = await Promise.allSettled(tasks)
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.error('Failed to load groups', result.reason)
+    }
+  })
 }
 
 onMounted(() => {
@@ -54,6 +64,15 @@ watch(
       loadGroups(true)
     } else {
       groupStore.reset()
+    }
+  }
+)
+
+watch(
+  () => effectiveIsAdmin.value,
+  (isAdminNow, wasAdmin) => {
+    if (isAdminNow && !wasAdmin) {
+      loadGroups(true)
     }
   }
 )
@@ -75,7 +94,10 @@ watch(
           <span class="widget-title">Active Groups</span>
           <i class="fas fa-users" style="color: var(--eucalypt);"></i>
         </div>
-        <div class="widget-value">{{ groups.length }}</div>
+        <div class="widget-value">
+          <span v-if="loadingMyGroups || loadingAllGroups">…</span>
+          <span v-else>{{ activeGroupCount }}</span>
+        </div>
         <div class="widget-footer">
           <RouterLink to="/groups" style="color: var(--dark-green);">View all groups →</RouterLink>
         </div>
