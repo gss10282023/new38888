@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth' // Pinia Auth
-import { mockGroups, mockResources, mockAnnouncements } from '../data/mock.js'
+import { useGroupStore } from '@/stores/groups'
+import { mockResources, mockAnnouncements } from '../data/mock.js'
 
 const router = useRouter()
 
@@ -13,7 +14,9 @@ const { user, isAdmin } = storeToRefs(auth)
 // 若 store 没有 isAdmin getter，则兜底判断 role
 const effectiveIsAdmin = computed(() => (isAdmin?.value ?? (user.value?.role === 'admin')))
 
-const groups = ref(mockGroups)
+const groupStore = useGroupStore()
+const { myGroups, loadingMyGroups } = storeToRefs(groupStore)
+const groups = computed(() => myGroups.value || [])
 const resources = ref(mockResources)
 const announcements = ref(mockAnnouncements)
 const announcementsCount = computed(() => announcements.value.length)
@@ -30,6 +33,30 @@ const getResourceIcon = (type) => {
   const icons = { document: 'fas fa-file-alt', video: 'fas fa-video', link: 'fas fa-link' }
   return icons[type] || 'fas fa-file'
 }
+
+const loadGroups = async (force = false) => {
+  if (!auth.isAuthenticated) return
+  try {
+    await groupStore.fetchMyGroups({ forceRefresh: force })
+  } catch (error) {
+    console.error('Failed to load groups', error)
+  }
+}
+
+onMounted(() => {
+  loadGroups()
+})
+
+watch(
+  () => auth.isAuthenticated,
+  (loggedIn) => {
+    if (loggedIn) {
+      loadGroups(true)
+    } else {
+      groupStore.reset()
+    }
+  }
+)
 </script>
 
 <template>
@@ -81,13 +108,18 @@ const getResourceIcon = (type) => {
     </div>
 
     <!-- My Active Groups：所有用户可见 -->
-    <div class="card" v-if="groups.length">
+    <div class="card">
       <div class="card-header">
-        <h3 class="card-title">My Active Groups ({{ groups.length }})</h3>
+        <h3 class="card-title">
+          My Active Groups
+          <span v-if="groups.length">({{ groups.length }})</span>
+        </h3>
         <RouterLink to="/groups" style="color: var(--dark-green);">View all</RouterLink>
       </div>
 
-      <div class="grid grid-2">
+      <div v-if="loadingMyGroups" class="empty-state">Loading your groups…</div>
+      <div v-else-if="!groups.length" class="empty-state">You are not assigned to any groups yet.</div>
+      <div v-else class="grid grid-2">
         <div
           v-for="group in groups"
           :key="group.id"
@@ -99,7 +131,7 @@ const getResourceIcon = (type) => {
               <div class="group-avatar">AP</div>
               <div class="group-avatar" style="background-color: var(--mint-green);">YG</div>
               <div class="group-avatar" style="background-color: var(--air-force-blue);">
-                +{{ group.members - 2 }}
+                +{{ Math.max((group.members || 0) - 2, 0) }}
               </div>
             </div>
             <div class="group-info">
@@ -163,5 +195,11 @@ const getResourceIcon = (type) => {
   color: var(--white);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px var(--shadow);
+}
+
+.empty-state {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #6c757d;
 }
 </style>

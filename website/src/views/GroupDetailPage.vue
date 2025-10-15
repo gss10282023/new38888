@@ -7,8 +7,11 @@
           <div class="group-avatar" style="width:48px;height:48px;font-size:1.1rem;">YG</div>
         </div>
         <div>
-          <h2 class="gd-title">{{ group.name }}</h2>
-          <p class="gd-subtitle">{{ group.members }} members · Group since August 04, 2025</p>
+          <h2 class="gd-title">{{ group?.name || 'Group' }}</h2>
+          <p class="gd-subtitle">
+            {{ memberCount }} members
+            <span v-if="group?.mentor?.name">· Mentor: {{ mentorName }}</span>
+          </p>
         </div>
       </div>
     </div>
@@ -31,6 +34,8 @@
       </button>
     </nav>
 
+    <div v-if="errorMessage" class="alert-error">{{ errorMessage }}</div>
+
     <!-- 桌面：双栏；移动：单栏由 tabs 切换 -->
     <div class="split" :data-active="activeTab">
       <!-- 左栏：Plan -->
@@ -42,43 +47,53 @@
           </button>
         </div>
         <div class="card-content plan-content">
-          <div v-for="m in tasks" :key="m.id" class="milestone">
-            <div class="milestone-header">
-              <div class="milestone-title">
-                <i class="fas fa-flag"></i>
-                {{ m.milestone }}
-              </div>
-              <div class="milestone-status">
-                {{ countCompleted(m) }}/{{ m.tasks.length }} Completed
-              </div>
-            </div>
-
-            <div class="task-list">
-              <div
-                v-for="t in m.tasks"
-                :key="t.id"
-                class="task-item"
-                @click="t.completed = !t.completed"
-              >
-                <div :class="['task-checkbox', { checked: t.completed }]" />
-                <div :class="['task-label', { completed: t.completed }]">{{ t.name }}</div>
-                <i class="fas fa-calendar" style="color:#6c757d;"></i>
-                <i class="fas fa-user" style="color:#6c757d;"></i>
+          <div v-if="loading" class="empty-state">Loading plan…</div>
+          <div v-else-if="!milestones.length" class="empty-state">尚未创建任何里程碑。</div>
+          <template v-else>
+            <div
+              v-for="m in milestones"
+              :key="m.id"
+              class="milestone"
+            >
+              <div class="milestone-header">
+                <div class="milestone-title">
+                  <i class="fas fa-flag"></i>
+                  {{ m.title }}
+                </div>
+                <div class="milestone-status">
+                  {{ countCompleted(m) }}/{{ (m.tasks || []).length }} Completed
+                </div>
               </div>
 
-              <div class="add-task-row">
-                <button
-                  type="button"
-                  class="btn btn-outline btn-sm add-task-btn"
-                  @click.stop="addTask(m)"
-                  title="Add a new task under this milestone"
+              <div class="task-list">
+                <div
+                  v-for="t in m.tasks"
+                  :key="t.id"
+                  :class="['task-item', { 'task-item--loading': togglingTaskId === t.id }]"
+                  @click="toggleTask(m, t)"
                 >
-                  <i class="fas fa-plus"></i>
-                  Add Task
-                </button>
+                  <div :class="['task-checkbox', { checked: t.completed }]" />
+                  <div :class="['task-label', { completed: t.completed }]">{{ t.name }}</div>
+                  <i class="fas fa-calendar" style="color:#6c757d;"></i>
+                  <i class="fas fa-user" style="color:#6c757d;"></i>
+                </div>
+
+                <div class="add-task-row">
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-sm add-task-btn"
+                    :disabled="addingTaskFor === m.id"
+                    @click.stop="addTask(m)"
+                    title="Add a new task under this milestone"
+                  >
+                    <i class="fas fa-plus"></i>
+                    <span v-if="addingTaskFor === m.id">Adding…</span>
+                    <span v-else>Add Task</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
         </div>
       </section>
 
@@ -138,43 +153,96 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { mockGroups } from '../data/mock.js'
+import { useGroupStore } from '@/stores/groups'
 
 const route = useRoute()
-const groupId = route.params.id
-const group = ref(mockGroups.find(g => g.id === groupId) || mockGroups[0])
+const groupStore = useGroupStore()
+
+const groupId = computed(() => route.params.id)
+const group = computed(() => groupStore.groupsById[groupId.value])
 
 // 只保留 plan / discussion
 const activeTab = ref('plan')
+const loading = ref(false)
+const errorMessage = ref('')
+const togglingTaskId = ref(null)
+const addingTaskFor = ref(null)
 
-// 示例任务数据
-const tasks = ref([
-  {
-    id: 1,
-    milestone: 'Getting Started',
-    tasks: [
-      { id: 11, name: 'Determine Group Topic', completed: false },
-      { id: 12, name: 'Determine Meeting Time', completed: false }
-    ]
-  },
-  {
-    id: 2,
-    milestone: 'Working Towards a Solution',
-    tasks: [
-      { id: 21, name: 'Meeting 1: Initialisation', completed: false },
-      { id: 22, name: 'Meeting 2: Project Planning & Poster Outline', completed: false },
-      { id: 23, name: 'Meeting 3: Draft Review & Optional Deliverables', completed: false }
-    ]
+const milestones = computed(() => group.value?.milestones || [])
+const memberCount = computed(() =>
+  Array.isArray(group.value?.members) ? group.value.members.length : 0
+)
+const mentorName = computed(() => group.value?.mentor?.name || '—')
+
+const loadGroup = async (id, { force = false } = {}) => {
+  if (!id) return
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    if (!groupStore.myGroupsLoaded) {
+      await groupStore.fetchMyGroups()
+    }
+    await groupStore.fetchGroupDetail(id, { forceRefresh: force })
+  } catch (error) {
+    console.error('Failed to load group detail', error)
+    errorMessage.value = error?.message || '无法加载群组信息'
+  } finally {
+    loading.value = false
   }
-])
+}
 
-const countCompleted = (m) => m.tasks.filter(t => t.completed).length
+watch(
+  groupId,
+  (id) => {
+    if (!id) return
+    loadGroup(id)
+  },
+  { immediate: true }
+)
 
-const addTask = (m) => {
-  const nextId = (m.tasks.reduce((max, t) => Math.max(max, t.id), 0) || 0) + 1
-  m.tasks.push({ id: nextId, name: 'New Task', completed: false })
+const countCompleted = (milestone) =>
+  Array.isArray(milestone?.tasks)
+    ? milestone.tasks.filter((task) => task.completed).length
+    : 0
+
+const toggleTask = async (milestone, task) => {
+  if (!groupId.value || !task) return
+  if (togglingTaskId.value === task.id) return
+
+  errorMessage.value = ''
+  const previous = task.completed
+  const nextState = !previous
+  task.completed = nextState
+  togglingTaskId.value = task.id
+
+  try {
+    await groupStore.setTaskCompletion(groupId.value, task.id, nextState)
+  } catch (error) {
+    task.completed = previous
+    errorMessage.value = error?.message || '更新任务失败'
+    console.error('Failed to update task', error)
+  } finally {
+    togglingTaskId.value = null
+  }
+}
+
+const addTask = async (milestone) => {
+  if (!groupId.value || !milestone) return
+  const name = window.prompt('请输入任务名称', 'New Task')
+  if (!name) return
+
+  errorMessage.value = ''
+  addingTaskFor.value = milestone.id
+  try {
+    await groupStore.addTask(groupId.value, milestone.id, name)
+  } catch (error) {
+    errorMessage.value = error?.message || '创建任务失败'
+    console.error('Failed to create task', error)
+  } finally {
+    addingTaskFor.value = null
+  }
 }
 
 // 讨论区（每条消息增加 date 字段）
@@ -384,6 +452,26 @@ onMounted(() => {
 /* Message text color for own messages */
 .pane--discussion .message.own .message-text {
   color: #fff !important;
+}
+
+.alert-error {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #ffecec;
+  border: 1px solid #f3c0c0;
+  color: #a52727;
+  border-radius: 8px;
+}
+
+.empty-state {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #6c757d;
+}
+
+.task-item--loading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* 移动端：单列 + 由 tabs 控制显示哪一块 */

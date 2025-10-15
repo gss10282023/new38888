@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { safeJson } from '@/utils/http'
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
@@ -221,11 +222,3 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 })
-
-async function safeJson(response) {
-  try {
-    return await response.json()
-  } catch {
-    return null
-  }
-}
