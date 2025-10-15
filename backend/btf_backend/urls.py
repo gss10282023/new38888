@@ -32,6 +32,9 @@ urlpatterns = [
     # Resource library endpoints
     path('api/resources/', include('resources.urls', namespace='resources')),
 
+    # Events endpoints
+    path('api/events/', include('events.urls', namespace='events')),
+
     # Chat endpoints
     path('api/', include(('chat.urls', 'chat'), namespace='chat')),
 
