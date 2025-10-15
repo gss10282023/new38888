@@ -4,7 +4,8 @@ import { useRouter, RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth' // Pinia Auth
 import { useGroupStore } from '@/stores/groups'
-import { mockResources, mockAnnouncements } from '../data/mock.js'
+import { useResourceStore } from '@/stores/resources'
+import { mockAnnouncements } from '../data/mock.js'
 
 const router = useRouter()
 
@@ -21,7 +22,9 @@ const adminGroups = computed(() => allGroups.value || [])
 const activeGroupCount = computed(() =>
   effectiveIsAdmin.value ? adminGroups.value.length : groups.value.length
 )
-const resources = ref(mockResources)
+const resourceStore = useResourceStore()
+const { items: resourceItems, loadingList: loadingResources } = storeToRefs(resourceStore)
+const resourcePreview = computed(() => (resourceItems.value || []).slice(0, 6))
 const announcements = ref(mockAnnouncements)
 const announcementsCount = computed(() => announcements.value.length)
 
@@ -34,8 +37,31 @@ const getCurrentDate = () =>
   })
 
 const getResourceIcon = (type) => {
-  const icons = { document: 'fas fa-file-alt', video: 'fas fa-video', link: 'fas fa-link' }
+  const icons = {
+    document: 'fas fa-file-alt',
+    video: 'fas fa-video',
+    link: 'fas fa-link',
+    template: 'fas fa-file-code',
+    guide: 'fas fa-book'
+  }
   return icons[type] || 'fas fa-file'
+}
+
+const formatResourceUpdated = (resource) => {
+  const value = resource?.updatedAt || resource?.updated_at
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-AU', { dateStyle: 'medium' }).format(parsed)
+}
+
+const resourceBannerStyle = (resource) => {
+  const base =
+    'height:100px; display:flex; align-items:center; justify-content:center; border-radius:8px; color:#fff;'
+  if (resource?.coverImage) {
+    return `${base} background-image:url('${resource.coverImage}'); background-size:cover; background-position:center;`
+  }
+  return `${base} background: linear-gradient(135deg, var(--dark-green), var(--eucalypt));`
 }
 
 const loadGroups = async (force = false) => {
@@ -53,8 +79,18 @@ const loadGroups = async (force = false) => {
   })
 }
 
+const loadResources = async (force = false) => {
+  if (!auth.isAuthenticated) return
+  try {
+    await resourceStore.fetchResources({ forceRefresh: force })
+  } catch (error) {
+    console.error('Failed to load resources', error)
+  }
+}
+
 onMounted(() => {
   loadGroups()
+  loadResources()
 })
 
 watch(
@@ -62,8 +98,10 @@ watch(
   (loggedIn) => {
     if (loggedIn) {
       loadGroups(true)
+      loadResources(true)
     } else {
       groupStore.reset()
+      resourceStore.reset()
     }
   }
 )
@@ -73,6 +111,7 @@ watch(
   (isAdminNow, wasAdmin) => {
     if (isAdminNow && !wasAdmin) {
       loadGroups(true)
+      loadResources(true)
     }
   }
 )
@@ -175,19 +214,21 @@ watch(
         <RouterLink to="/resources" style="color: var(--dark-green);">View all</RouterLink>
       </div>
 
-      <div class="resource-grid">
+      <div v-if="loadingResources" class="empty-state">Loading resources…</div>
+      <div v-else-if="!resourcePreview.length" class="empty-state">No resources available yet.</div>
+      <div v-else class="resource-grid">
         <div
-          v-for="resource in resources.slice(0, 6)"
+          v-for="resource in resourcePreview"
           :key="resource.id"
           class="resource-card"
           @click="router.push('/resources/' + resource.id)"
         >
-          <div class="resource-icon">
-            <i :class="getResourceIcon(resource.type)"></i>
+          <div class="resource-preview-banner" :style="resourceBannerStyle(resource)">
+            <i v-if="!resource.coverImage" :class="getResourceIcon(resource.type)"></i>
           </div>
           <div class="resource-content">
             <div class="resource-title">{{ resource.title }}</div>
-            <div class="resource-meta">Updated {{ resource.updated }}</div>
+            <div class="resource-meta">Updated {{ formatResourceUpdated(resource) }}</div>
           </div>
         </div>
       </div>
@@ -222,6 +263,52 @@ watch(
 .empty-state {
   padding: 2rem 1rem;
   text-align: center;
+  color: #6c757d;
+}
+
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.resource-card {
+  background: var(--white);
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(21, 30, 24, 0.08);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.resource-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(21, 30, 24, 0.12);
+}
+
+.resource-preview-banner {
+  width: 100%;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--dark-green), var(--eucalypt));
+}
+.resource-preview-banner i {
+  font-size: 1.8rem;
+  opacity: 0.9;
+}
+
+.resource-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.resource-title {
+  font-weight: 600;
+  color: var(--charcoal);
+}
+.resource-meta {
+  font-size: 0.85rem;
   color: #6c757d;
 }
 </style>
