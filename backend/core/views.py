@@ -1,5 +1,10 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from uuid import uuid4
+
+from django.core.files.storage import default_storage
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.core.cache import cache
 from django.db import connection
@@ -50,3 +55,35 @@ def health_check(request):
     http_status = 200 if status['status'] == 'healthy' else 503
 
     return Response(status, status=http_status)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser])
+def upload_file(request):
+    """
+    Upload a file to the configured object storage and return its public URL.
+    """
+
+    uploaded_file = request.FILES.get('file')
+    if uploaded_file is None:
+        return Response(
+            {'detail': 'No file provided.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    extension = os.path.splitext(uploaded_file.name)[1]
+    storage_path = f'uploads/{uuid4().hex}{extension}'
+
+    stored_path = default_storage.save(storage_path, uploaded_file)
+    file_url = default_storage.url(stored_path)
+
+    return Response(
+        {
+            'url': file_url,
+            'filename': uploaded_file.name,
+            'size': uploaded_file.size,
+            'mimeType': uploaded_file.content_type or 'application/octet-stream',
+        },
+        status=status.HTTP_201_CREATED,
+    )

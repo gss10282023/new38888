@@ -6,6 +6,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'drf_spectacular',
+    'storages',
 
     # Local apps
     'authentication',
@@ -218,3 +220,30 @@ LOGGING = {
         },
     },
 }
+
+# Object Storage (Vultr S3 compatible)
+VULTR_ACCESS_KEY = os.getenv('VULTR_ACCESS_KEY')
+VULTR_SECRET_KEY = os.getenv('VULTR_SECRET_KEY')
+VULTR_BUCKET_NAME = os.getenv('VULTR_BUCKET_NAME')
+VULTR_S3_ENDPOINT = os.getenv('VULTR_S3_ENDPOINT')
+VULTR_S3_REGION = os.getenv('VULTR_S3_REGION', 'sgp1')
+
+if all([VULTR_ACCESS_KEY, VULTR_SECRET_KEY, VULTR_BUCKET_NAME, VULTR_S3_ENDPOINT]):
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    AWS_ACCESS_KEY_ID = VULTR_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY = VULTR_SECRET_KEY
+    AWS_STORAGE_BUCKET_NAME = VULTR_BUCKET_NAME
+    AWS_S3_ENDPOINT_URL = VULTR_S3_ENDPOINT
+    AWS_S3_REGION_NAME = VULTR_S3_REGION
+    AWS_DEFAULT_ACL = os.getenv('VULTR_DEFAULT_ACL', 'public-read')
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+
+    parsed_endpoint = urlparse(VULTR_S3_ENDPOINT)
+    endpoint_host = parsed_endpoint.netloc or parsed_endpoint.path
+    AWS_S3_CUSTOM_DOMAIN = os.getenv(
+        'VULTR_S3_CUSTOM_DOMAIN',
+        f'{VULTR_BUCKET_NAME}.{endpoint_host}' if endpoint_host else None,
+    )

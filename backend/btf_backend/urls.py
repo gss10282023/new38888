@@ -29,8 +29,11 @@ urlpatterns = [
     # Group management endpoints
     path('api/groups/', include('groups.urls', namespace='groups')),
 
-    # Health check endpoint
-    path('api/health/', include('core.urls')),
+    # Chat endpoints
+    path('api/', include(('chat.urls', 'chat'), namespace='chat')),
+
+    # Core endpoints (health, uploads)
+    path('api/', include(('core.urls', 'core'), namespace='core')),
 ]
 
 # Serve media files in development
