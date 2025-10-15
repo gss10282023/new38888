@@ -229,7 +229,14 @@ VULTR_S3_ENDPOINT = os.getenv('VULTR_S3_ENDPOINT')
 VULTR_S3_REGION = os.getenv('VULTR_S3_REGION', 'sgp1')
 
 if all([VULTR_ACCESS_KEY, VULTR_SECRET_KEY, VULTR_BUCKET_NAME, VULTR_S3_ENDPOINT]):
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
     AWS_ACCESS_KEY_ID = VULTR_ACCESS_KEY
     AWS_SECRET_ACCESS_KEY = VULTR_SECRET_KEY
