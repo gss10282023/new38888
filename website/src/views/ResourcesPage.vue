@@ -36,39 +36,49 @@
       >
         <!-- 顶部封面（可编辑，admin 可见按钮） -->
         <div class="resource-banner" :style="bannerStyle(resource)">
+          <div class="banner-controls">
+            <div class="controls-left">
+              <button
+                v-if="isAdmin"
+                type="button"
+                class="control-btn"
+                title="Change cover image"
+                @click.stop="triggerCoverPicker(resource.id)"
+              >
+                <i class="fas fa-image"></i>
+              </button>
+              <!-- 隐藏的文件选择器（仅管理员使用） -->
+              <input
+                v-if="isAdmin"
+                type="file"
+                accept="image/*"
+                class="hidden-file"
+                :ref="el => setCoverInputRef(el, resource.id)"
+                @change="onCoverPicked($event, resource)"
+              />
+            </div>
+            <div class="controls-right">
+              <button
+                type="button"
+                class="control-btn"
+                title="Download resource"
+                @click.stop="downloadResource(resource)"
+              >
+                <i class="fas fa-download"></i>
+              </button>
+              <button
+                v-if="isAdmin"
+                type="button"
+                class="control-btn"
+                title="Delete resource"
+                @click.stop="deleteResource(resource)"
+              >
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
           <i v-if="!resource.cover" :class="getResourceIcon(resource.type)" class="banner-icon"></i>
-
-          <!-- 管理员：变更封面 -->
-          <button
-            v-if="isAdmin"
-            type="button"
-            class="edit-cover-btn"
-            title="Change cover image"
-            @click.stop="triggerCoverPicker(resource.id)"
-          >
-            <i class="fas fa-image"></i>
-          </button>
-
-          <!-- 管理员：移除封面 -->
-          <button
-            v-if="isAdmin && resource.cover"
-            type="button"
-            class="edit-cover-btn"
-            style="right: 46px;"
-            title="Remove cover image"
-            @click.stop="resetCover(resource)"
-          >
-            <i class="fas fa-trash"></i>
-          </button>
-
-          <!-- 隐藏的文件选择器 -->
-          <input
-            type="file"
-            accept="image/*"
-            class="hidden-file"
-            :ref="el => setCoverInputRef(el, resource.id)"
-            @change="onCoverPicked($event, resource)"
-          />
         </div>
 
         <div class="resource-content">
@@ -150,7 +160,10 @@ const openResource = (resource) => {
 // —— 封面图可编辑（仅 admin） —— //
 const coverInputs = new Map()
 const setCoverInputRef = (el, id) => { if (el) coverInputs.set(id, el) }
-const triggerCoverPicker = (id) => { coverInputs.get(id)?.click() }
+const triggerCoverPicker = (id) => {
+  if (!isAdmin.value) return
+  coverInputs.get(id)?.click()
+}
 
 const onCoverPicked = (e, res) => {
   const file = e.target.files && e.target.files[0]
@@ -162,11 +175,6 @@ const onCoverPicked = (e, res) => {
   }
   reader.readAsDataURL(file)
   e.target.value = '' // 清空，避免同图不触发 change
-}
-
-const resetCover = (res) => {
-  try { localStorage.removeItem(`resourceCover:${res.id}`) } catch {}
-  res.cover = null
 }
 
 // 载入时恢复本地封面持久化
@@ -209,6 +217,25 @@ const getAudienceClass = (role) => {
   }
   return classes[role] || 'status-active'
 }
+
+const downloadResource = (res) => {
+  const url = res.file_url || res.fileUrl
+  if (url) {
+    window.open(url, '_blank', 'noopener')
+    return
+  }
+  alert('Download link is not available yet.')
+}
+
+const deleteResource = (res) => {
+  if (!isAdmin.value) return
+  const confirmed = window.confirm(`Delete "${res.title}"? This action cannot be undone.`)
+  if (!confirmed) return
+
+  resources.value = resources.value.filter(r => r.id !== res.id)
+  coverInputs.delete(res.id)
+  try { localStorage.removeItem(`resourceCover:${res.id}`) } catch {}
+}
 </script>
 
 <style scoped>
@@ -239,11 +266,22 @@ const getAudienceClass = (role) => {
   opacity: 0.95;
 }
 
-/* 编辑封面按钮（仅管理员可见） */
-.edit-cover-btn {
+.banner-controls {
   position: absolute;
+  top: 10px;
+  left: 10px;
   right: 10px;
-  bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.controls-left,
+.controls-right {
+  display: flex;
+  gap: 0.4rem;
+}
+.control-btn {
+  pointer-events: auto;
   background: rgba(0,0,0,0.55);
   color: #fff;
   border: none;
@@ -251,8 +289,9 @@ const getAudienceClass = (role) => {
   padding: 0.35rem 0.55rem;
   cursor: pointer;
   font-size: 0.85rem;
+  transition: background 0.2s ease;
 }
-.edit-cover-btn:hover {
+.control-btn:hover {
   background: rgba(0,0,0,0.7);
 }
 .hidden-file { display: none; }

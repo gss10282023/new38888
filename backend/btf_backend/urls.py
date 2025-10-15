@@ -29,6 +29,9 @@ urlpatterns = [
     # Group management endpoints
     path('api/groups/', include('groups.urls', namespace='groups')),
 
+    # Resource library endpoints
+    path('api/resources/', include('resources.urls', namespace='resources')),
+
     # Chat endpoints
     path('api/', include(('chat.urls', 'chat'), namespace='chat')),
 
