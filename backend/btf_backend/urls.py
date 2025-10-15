@@ -26,6 +26,9 @@ urlpatterns = [
     # User profile endpoints
     path('api/users/', include('users.urls', namespace='users')),
 
+    # Group management endpoints
+    path('api/groups/', include('groups.urls', namespace='groups')),
+
     # Health check endpoint
     path('api/health/', include('core.urls')),
 ]
