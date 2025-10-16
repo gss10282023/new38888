@@ -14,7 +14,8 @@ export const useGroupStore = defineStore('groups', {
     groupsById: {},
     errorMyGroups: null,
     errorAllGroups: null,
-    errorById: {}
+    errorById: {},
+    activeUserId: null
   }),
   actions: {
     reset() {
@@ -29,17 +30,29 @@ export const useGroupStore = defineStore('groups', {
       this.errorMyGroups = null
       this.errorAllGroups = null
       this.errorById = {}
+      this.activeUserId = null
     },
 
     async fetchMyGroups({ forceRefresh = false } = {}) {
       if (this.loadingMyGroups) return this.myGroups
+
+      const auth = useAuthStore()
+      const userId = auth.user?.id ?? null
+      if (!userId) {
+        this.reset()
+        return []
+      }
+      if (this.activeUserId !== userId) {
+        this.reset()
+        this.activeUserId = userId
+      }
+
       if (this.myGroupsLoaded && !forceRefresh) return this.myGroups
 
       this.loadingMyGroups = true
       this.errorMyGroups = null
 
       try {
-        const auth = useAuthStore()
         const response = await auth.authenticatedFetch('/groups/my-groups/')
         const data = await safeJson(response)
         if (!response.ok) {
@@ -67,13 +80,24 @@ export const useGroupStore = defineStore('groups', {
 
     async fetchAllGroups({ forceRefresh = false } = {}) {
       if (this.loadingAllGroups) return this.allGroups
+
+      const auth = useAuthStore()
+      const userId = auth.user?.id ?? null
+      if (!userId) {
+        this.reset()
+        return []
+      }
+      if (this.activeUserId !== userId) {
+        this.reset()
+        this.activeUserId = userId
+      }
+
       if (this.allGroupsLoaded && !forceRefresh) return this.allGroups
 
       this.loadingAllGroups = true
       this.errorAllGroups = null
 
       try {
-        const auth = useAuthStore()
         const response = await auth.authenticatedFetch('/groups/')
         const data = await safeJson(response)
         if (!response.ok) {
@@ -102,6 +126,17 @@ export const useGroupStore = defineStore('groups', {
     async fetchGroupDetail(groupId, { forceRefresh = false } = {}) {
       if (!groupId) return null
 
+      const auth = useAuthStore()
+      const userId = auth.user?.id ?? null
+      if (!userId) {
+        this.reset()
+        return null
+      }
+      if (this.activeUserId !== userId) {
+        this.reset()
+        this.activeUserId = userId
+      }
+
       const cached = this.groupsById[groupId]
       if (!forceRefresh && cached?.milestones) return cached
       if (this.loadingById[groupId]) return cached || null
@@ -110,7 +145,6 @@ export const useGroupStore = defineStore('groups', {
       this.errorById = { ...this.errorById, [groupId]: null }
 
       try {
-        const auth = useAuthStore()
         const response = await auth.authenticatedFetch(`/groups/${groupId}/`)
         const data = await safeJson(response)
         if (!response.ok) {

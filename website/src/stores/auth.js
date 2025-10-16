@@ -172,6 +172,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     setSession({ user, accessToken, refreshToken }) {
+      const previousUserId = this.user?.id ?? null
       this.user = user || null
       this.accessToken = accessToken || null
       this.refreshToken = refreshToken || null
@@ -190,6 +191,22 @@ export const useAuthStore = defineStore('auth', {
           localStorage.removeItem(SESSION_STORAGE_KEY)
         }
       } catch {}
+
+      // 当检测到账号切换时，重置依赖于用户身份的缓存
+      const currentUserId = this.user?.id ?? null
+      if (previousUserId !== null && currentUserId !== null && previousUserId !== currentUserId) {
+        try {
+          const { useGroupStore } = require('@/stores/groups')
+          const { useResourceStore } = require('@/stores/resources')
+          const { useEventStore } = require('@/stores/events')
+
+          useGroupStore().reset()
+          useResourceStore().reset()
+          useEventStore().reset()
+        } catch {
+          // ignore require issues (e.g. during hydration in non-module context)
+        }
+      }
     },
 
     clearSession() {

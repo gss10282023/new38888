@@ -3,75 +3,84 @@
     <div class="page-head">
       <h1>Events & Workshops</h1>
       <div class="head-actions">
-        <button class="btn btn-outline">
-          <i class="fas fa-filter"></i> Filter
+        <button class="btn btn-outline" type="button" @click="loadEvents(true)">
+          <i class="fas fa-rotate"></i> Refresh
         </button>
-        <button v-if="isAdmin" class="btn btn-primary" @click="createEvent">
+        <button v-if="isAdmin" class="btn btn-primary" type="button" @click="openCreateModal">
           <i class="fas fa-plus"></i> Create Event
         </button>
       </div>
     </div>
 
-    <!-- 两列网格 -->
-    <div class="events-grid" v-if="events.length">
-      <div v-for="ev in events" :key="ev.id" class="event-card">
-        <!-- 封面：支持自定义图片/占位背景 -->
-        <div class="event-banner" :style="bannerStyle(ev)">
-          <i v-if="!ev.cover" class="fas fa-calendar-alt"></i>
+    <div v-if="loadingList" class="card">
+      <h3>Loading events…</h3>
+      <p style="color:#6c757d;">Fetching the latest schedule for you.</p>
+    </div>
 
-          <!-- 管理员可编辑封面 -->
-          <button
-            v-if="isAdmin"
-            type="button"
-            class="edit-cover-btn"
-            @click="triggerCoverPicker(ev.id)"
-            title="Change cover image"
-          >
-            <i class="fas fa-image"></i>
-          </button>
-          <!-- （可选）重置封面 -->
-          <button
-            v-if="isAdmin && ev.cover"
-            type="button"
-            class="edit-cover-btn"
-            style="right: 46px;"
-            @click="resetCover(ev)"
-            title="Remove cover image"
-          >
-            <i class="fas fa-trash"></i>
-          </button>
-          <!-- 隐藏文件选择器 -->
-          <input
-            type="file"
-            accept="image/*"
-            class="hidden-file"
-            :ref="el => setCoverInputRef(el, ev.id)"
-            @change="onCoverPicked($event, ev)"
-          />
+    <div v-else-if="pageError" class="card">
+      <h3>Unable to load events</h3>
+      <p style="color:#dc3545;">{{ pageError.message || 'An unexpected error occurred.' }}</p>
+      <button type="button" class="btn btn-outline" @click="loadEvents(true)">Retry</button>
+    </div>
+
+    <!-- 两列网格 -->
+    <div class="events-grid" v-else-if="events.length">
+      <div v-for="ev in events" :key="ev.id" class="event-card">
+        <div class="event-banner" :style="bannerStyle(ev)">
+          <i v-if="!ev.coverImage" class="fas fa-calendar-alt"></i>
+
+          <div class="banner-controls" v-if="isAdmin">
+            <button
+              type="button"
+              class="edit-cover-btn"
+              :disabled="coverUploading(ev.id)"
+              @click.prevent="triggerCoverPicker(ev.id)"
+              title="Change cover image"
+            >
+              <i v-if="coverUploading(ev.id)" class="fas fa-spinner fa-spin"></i>
+              <i v-else class="fas fa-image"></i>
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              class="hidden-file"
+              :ref="el => setCoverInputRef(el, ev.id)"
+              @change="onCoverPicked($event, ev)"
+            />
+            <button
+              type="button"
+              class="edit-cover-btn danger"
+              :disabled="deleting(ev.id)"
+              title="Delete event"
+              @click.prevent="deleteEvent(ev)"
+            >
+              <i v-if="deleting(ev.id)" class="fas fa-spinner fa-spin"></i>
+              <i v-else class="fas fa-trash"></i>
+            </button>
+          </div>
         </div>
 
         <div class="event-content">
           <span class="event-date">{{ formatDate(ev.date) }}</span>
           <h3 class="event-title">{{ ev.title }}</h3>
           <p class="event-description">
-            {{ ev.description || 'Join us for this important session as part of the BIOTech Futures program.' }}
+            {{ ev.description || defaultLong }}
           </p>
 
           <div class="event-meta">
             <div class="event-meta-item">
-              <i class="fas fa-clock"></i> {{ ev.time }}
+              <i class="fas fa-clock"></i> {{ ev.time || 'TBA' }}
             </div>
             <div class="event-meta-item">
-              <i class="fas fa-map-marker-alt"></i> {{ ev.location }}
+              <i class="fas fa-map-marker-alt"></i> {{ ev.location || 'TBA' }}
             </div>
             <div class="event-meta-item">
-              <i class="fas fa-users"></i> {{ ev.type }}
+              <i class="fas fa-users"></i> {{ formatType(ev.type) }}
             </div>
           </div>
 
-          <!-- CTA 区：View Details + Register Now -->
           <div class="cta-row">
-            <button class="btn btn-outline" @click="openDetails(ev)">View Details</button>
+            <button class="btn btn-outline" type="button" @click="openDetails(ev)">View Details</button>
 
             <a
               v-if="ev.registerLink"
@@ -82,7 +91,23 @@
             >
               Register Now
             </a>
-            <button v-else class="btn btn-primary" @click="register(ev)">Register Now</button>
+            <button
+              v-else
+              class="btn btn-primary"
+              type="button"
+              :disabled="ev.isRegistered || registering(ev.id)"
+              @click="register(ev)"
+            >
+              <template v-if="ev.isRegistered">
+                <i class="fas fa-check-circle"></i> Registered
+              </template>
+              <template v-else-if="registering(ev.id)">
+                <i class="fas fa-spinner fa-spin"></i> Registering…
+              </template>
+              <template v-else>
+                Register Now
+              </template>
+            </button>
           </div>
         </div>
       </div>
@@ -90,6 +115,7 @@
 
     <div v-else class="card">
       <h3>No upcoming events</h3>
+      <p style="color:#6c757d;">Check back soon for new workshops and sessions.</p>
     </div>
 
     <!-- 详情弹窗 -->
@@ -101,10 +127,10 @@
         </div>
         <div class="modal-body">
           <div class="detail-banner" :style="bannerStyle(selected)">
-            <i v-if="selected && !selected.cover" class="fas fa-calendar-alt"></i>
+            <i v-if="selected && !selected.coverImage" class="fas fa-calendar-alt"></i>
           </div>
           <p style="color:#6c757d; margin: 0.75rem 0;">
-            {{ formatDate(selected?.date) }} • {{ selected?.time }} • {{ selected?.location }} • {{ selected?.type }}
+            {{ formatDate(selected?.date) }} • {{ selected?.time }} • {{ selected?.location }} • {{ formatType(selected?.type) }}
           </p>
           <p>{{ selected?.longDescription || selected?.description || defaultLong }}</p>
         </div>
@@ -117,30 +143,182 @@
             target="_blank"
             rel="noopener"
           >Register Now</a>
-          <button v-else class="btn btn-primary" @click="register(selected)">Register Now</button>
+          <button
+            v-else
+            class="btn btn-primary"
+            :disabled="selected?.isRegistered || registering(selected?.id)"
+            @click="register(selected)"
+          >
+            <template v-if="selected?.isRegistered">
+              <i class="fas fa-check-circle"></i> Registered
+            </template>
+            <template v-else-if="registering(selected?.id)">
+              <i class="fas fa-spinner fa-spin"></i> Registering…
+            </template>
+            <template v-else>
+              Register Now
+            </template>
+          </button>
         </div>
+      </div>
+    </div>
+
+    <!-- 创建活动模态框 -->
+    <div v-if="showCreateModal" class="modal-backdrop">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2>Create Event</h2>
+          <button class="modal-close" type="button" @click="closeCreateModal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form class="modal-body" @submit.prevent="submitCreate">
+          <div class="form-group">
+            <label for="event-title">Title</label>
+            <input
+              id="event-title"
+              v-model="createForm.title"
+              type="text"
+              class="form-control"
+              placeholder="Enter event title"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="event-description">Description</label>
+            <textarea
+              id="event-description"
+              v-model="createForm.description"
+              class="form-control"
+              rows="2"
+              placeholder="Short description"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="event-long-description">Long Description</label>
+            <textarea
+              id="event-long-description"
+              v-model="createForm.longDescription"
+              class="form-control"
+              rows="4"
+              placeholder="Full agenda or session details"
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="event-date">Date</label>
+              <input
+                id="event-date"
+                v-model="createForm.date"
+                type="date"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="event-time">Time</label>
+              <input
+                id="event-time"
+                v-model="createForm.time"
+                type="text"
+                class="form-control"
+                placeholder="e.g. 3:00 PM"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="event-location">Location</label>
+            <input
+              id="event-location"
+              v-model="createForm.location"
+              type="text"
+              class="form-control"
+              placeholder="Online / Venue details"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="event-type">Type</label>
+              <select
+                id="event-type"
+                v-model="createForm.type"
+                class="form-control"
+              >
+                <option value="in-person">In Person</option>
+                <option value="virtual">Virtual</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="event-capacity">Capacity (optional)</label>
+              <input
+                id="event-capacity"
+                v-model="createForm.capacity"
+                type="number"
+                min="1"
+                class="form-control"
+                placeholder="Leave blank if unlimited"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="event-register-link">Registration Link (optional)</label>
+            <input
+              id="event-register-link"
+              v-model="createForm.registerLink"
+              type="url"
+              class="form-control"
+              placeholder="https://example.com/register"
+            />
+          </div>
+
+          <p v-if="createError" class="form-error">{{ createError }}</p>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" @click="closeCreateModal" :disabled="creating">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="creating">
+              <i v-if="creating" class="fas fa-spinner fa-spin"></i>
+              <span v-else>Create Event</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { mockEvents } from '../data/mock.js'
-import { useAuthStore } from '../stores/auth'
+import { computed, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
+import { useEventStore } from '@/stores/events'
 
 const auth = useAuthStore()
+const eventStore = useEventStore()
+
+const { items, loadingList } = storeToRefs(eventStore)
 const isAdmin = computed(() => auth.isAdmin)
 
-const events = ref(mockEvents.map(e => ({ ...e })))
+const events = computed(() => items.value || [])
+const pageError = ref(null)
 
 const defaultLong =
   'This session is part of the BIOTech Futures program. Learn, collaborate, and build your project with mentors and peers.'
 
-// --- 显示与格式化 ---
 const formatDate = (dateStr) => {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-AU', {
+  if (!dateStr) return 'TBA'
+  const parsed = new Date(dateStr)
+  if (Number.isNaN(parsed.getTime())) return dateStr
+  return parsed.toLocaleDateString('en-AU', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -148,21 +326,28 @@ const formatDate = (dateStr) => {
   })
 }
 
-const bannerStyle = (ev) => {
-  const base = 'height: 150px; display:flex; align-items:center; justify-content:center; color: #fff;'
-  if (!ev) return base
-  if (ev.cover) {
-    return `${base} background-image: url('${ev.cover}'); background-size: cover; background-position: center;`
+const formatType = (type) => {
+  const map = {
+    'in-person': 'In Person',
+    'virtual': 'Virtual'
   }
-  // 无封面则用品牌渐变/纯色占位
-  return `${base} background: linear-gradient(135deg, var(--dark-green), var(--mint-green));`
+  return map[type] || 'Event'
 }
 
-// --- 详情弹窗 ---
+const bannerStyle = (ev) => {
+  const base =
+    'height: 150px; display:flex; align-items:center; justify-content:center; color: #fff; background: linear-gradient(135deg, var(--dark-green), var(--mint-green));'
+  if (!ev) return base
+  if (ev.coverImage) {
+    return `${base} background-image: url('${ev.coverImage}'); background-size: cover; background-position: center;`
+  }
+  return base
+}
+
 const showModal = ref(false)
 const selected = ref(null)
 const openDetails = (ev) => {
-  selected.value = ev
+  selected.value = { ...ev }
   showModal.value = true
 }
 const closeDetails = () => {
@@ -170,53 +355,179 @@ const closeDetails = () => {
   selected.value = null
 }
 
-// --- 注册（占位逻辑，可换成你的实际流程） ---
-const register = (ev) => {
-  alert(`Registering for: ${ev?.title || 'Event'}`)
-}
-
-// --- 封面可编辑（管理员）：文件选择 & 本地预览 & localStorage 持久化 ---
 const coverInputs = new Map()
 const setCoverInputRef = (el, id) => {
-  if (el) coverInputs.set(id, el)
+  if (el) {
+    coverInputs.set(id, el)
+  } else {
+    coverInputs.delete(id)
+  }
 }
 const triggerCoverPicker = (id) => {
-  const input = coverInputs.get(id)
-  if (input) input.click()
-}
-const onCoverPicked = (e, ev) => {
-  const file = e.target.files && e.target.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    ev.cover = String(reader.result) // data URL，本地预览
-    try {
-      localStorage.setItem(`eventCover:${ev.id}`, ev.cover)
-    } catch {}
-  }
-  reader.readAsDataURL(file)
-  // 清空 input 值，防止同图不触发 change
-  e.target.value = ''
-}
-const resetCover = (ev) => {
-  try { localStorage.removeItem(`eventCover:${ev.id}`) } catch {}
-  ev.cover = null
+  if (!isAdmin.value) return
+  coverInputs.get(id)?.click()
 }
 
-// 初始载入：还原持久化封面
+const coverUploading = (id) => Boolean(eventStore.uploadingCoverIds?.[id])
+const registering = (id) => Boolean(eventStore.registeringIds?.[id])
+const deleting = (id) => Boolean(eventStore.deletingIds?.[id])
+
+const onCoverPicked = async (event, ev) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  try {
+    await eventStore.updateCover(ev.id, file)
+  } catch (error) {
+    console.error(error)
+    alert(error.message || 'Failed to update cover.')
+  }
+}
+
+const register = async (eventObj) => {
+  if (!eventObj?.id) return
+  if (eventObj.registerLink) {
+    window.open(eventObj.registerLink, '_blank', 'noopener')
+    return
+  }
+  try {
+    await eventStore.registerEvent(eventObj.id)
+    alert('Registered successfully!')
+    if (selected.value?.id === eventObj.id) {
+      selected.value = {
+        ...selected.value,
+        isRegistered: true,
+        registrationCount: (selected.value.registrationCount || 0) + 1
+      }
+    }
+  } catch (error) {
+    console.error(error)
+    alert(error.message || 'Registration failed.')
+  }
+}
+
+const deleteEvent = async (eventObj) => {
+  if (!eventObj?.id) return
+  const confirmed = window.confirm(`Delete "${eventObj.title}"? This action cannot be undone.`)
+  if (!confirmed) return
+  try {
+    await eventStore.deleteEvent(eventObj.id)
+    if (selected.value?.id === eventObj.id) {
+      closeDetails()
+    }
+  } catch (error) {
+    console.error(error)
+    alert(error.message || '删除失败，请稍后重试。')
+  }
+}
+
+const loadEvents = async (force = false) => {
+  if (!auth.isAuthenticated) return
+  try {
+    await eventStore.fetchEvents({ forceRefresh: force })
+    pageError.value = null
+  } catch (error) {
+    console.error(error)
+    pageError.value = error
+  }
+}
+
 onMounted(() => {
-  events.value.forEach(ev => {
-    try {
-      const saved = localStorage.getItem(`eventCover:${ev.id}`)
-      if (saved) ev.cover = saved
-    } catch {}
-  })
+  loadEvents()
 })
 
-// 可扩展：创建活动（仅管理员）
-const createEvent = () => {
-  alert('Create Event (demo)')
+watch(
+  () => auth.isAuthenticated,
+  (loggedIn) => {
+    if (loggedIn) {
+      loadEvents(true)
+    } else {
+      eventStore.reset()
+      pageError.value = null
+    }
+  }
+)
+
+watch(
+  items,
+  (list) => {
+    if (!selected.value) return
+    const updated = (list || []).find((item) => item.id === selected.value.id)
+    if (updated) {
+      selected.value = { ...updated }
+    }
+  },
+  { deep: false }
+)
+
+// --- 创建活动模态 ---
+const showCreateModal = ref(false)
+const createError = ref(null)
+const createForm = ref({
+  title: '',
+  description: '',
+  longDescription: '',
+  date: '',
+  time: '',
+  location: '',
+  type: 'in-person',
+  registerLink: '',
+  capacity: ''
+})
+
+const openCreateModal = () => {
+  if (!isAdmin.value) return
+  createForm.value = {
+    title: '',
+    description: '',
+    longDescription: '',
+    date: '',
+    time: '',
+    location: '',
+    type: 'in-person',
+    registerLink: '',
+    capacity: ''
+  }
+  createError.value = null
+  showCreateModal.value = true
 }
+
+const closeCreateModal = () => {
+  showCreateModal.value = false
+  createError.value = null
+}
+
+const submitCreate = async () => {
+  createError.value = null
+  const payload = {
+    title: createForm.value.title.trim(),
+    description: createForm.value.description.trim(),
+    longDescription: createForm.value.longDescription.trim(),
+    date: createForm.value.date,
+    time: createForm.value.time.trim(),
+    location: createForm.value.location.trim(),
+    type: createForm.value.type,
+    registerLink: createForm.value.registerLink.trim(),
+    capacity: createForm.value.capacity ? Number(createForm.value.capacity) : null
+  }
+
+  if (!payload.title || !payload.date || !payload.time || !payload.location) {
+    createError.value = '请完整填写必填项'
+    return
+  }
+
+  try {
+    await eventStore.createEvent(payload)
+    showCreateModal.value = false
+    createError.value = null
+  } catch (error) {
+    console.error(error)
+    createError.value = error.message || '创建活动失败，请稍后再试'
+  }
+}
+
+const creating = computed(() => eventStore.creating)
 </script>
 
 <style scoped>
@@ -263,11 +574,17 @@ const createEvent = () => {
   opacity: 0.9;
 }
 
-/* 编辑封面按钮（仅管理员可见） */
-.edit-cover-btn {
+.banner-controls {
   position: absolute;
+  top: 10px;
+  left: 10px;
   right: 10px;
-  bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.edit-cover-btn {
+  pointer-events: auto;
   background: rgba(0,0,0,0.55);
   color: #fff;
   border: none;
@@ -278,6 +595,11 @@ const createEvent = () => {
 }
 .edit-cover-btn:hover {
   background: rgba(0,0,0,0.7);
+}
+.edit-cover-btn:disabled,
+.edit-cover-btn:disabled:hover {
+  background: rgba(0,0,0,0.35);
+  cursor: not-allowed;
 }
 .hidden-file {
   display: none;
@@ -339,5 +661,63 @@ const createEvent = () => {
 }
 .detail-banner i {
   font-size: 2.5rem;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 30, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1.5rem;
+}
+.modal-container {
+  width: min(680px, 100%);
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(21, 30, 24, 0.25);
+  overflow: hidden;
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+.modal-body {
+  padding: 1.5rem;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+.form-error {
+  margin: 0 0 1rem;
+  color: #d9534f;
+  font-weight: 600;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .form-row {
+    flex-direction: column;
+  }
 }
 </style>

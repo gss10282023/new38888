@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth' // Pinia Auth
 import { useGroupStore } from '@/stores/groups'
 import { useResourceStore } from '@/stores/resources'
+import { useEventStore } from '@/stores/events'
 import { mockAnnouncements } from '../data/mock.js'
 
 const router = useRouter()
@@ -25,6 +26,10 @@ const activeGroupCount = computed(() =>
 const resourceStore = useResourceStore()
 const { items: resourceItems, loadingList: loadingResources } = storeToRefs(resourceStore)
 const resourcePreview = computed(() => (resourceItems.value || []).slice(0, 6))
+const eventStore = useEventStore()
+const { items: eventItems, loadingList: loadingEvents } = storeToRefs(eventStore)
+const upcomingEvents = computed(() => eventItems.value || [])
+const upcomingEventCount = computed(() => upcomingEvents.value.length)
 const announcements = ref(mockAnnouncements)
 const announcementsCount = computed(() => announcements.value.length)
 
@@ -88,9 +93,19 @@ const loadResources = async (force = false) => {
   }
 }
 
+const loadEvents = async (force = false) => {
+  if (!auth.isAuthenticated) return
+  try {
+    await eventStore.fetchEvents({ forceRefresh: force })
+  } catch (error) {
+    console.error('Failed to load events', error)
+  }
+}
+
 onMounted(() => {
   loadGroups()
   loadResources()
+  loadEvents()
 })
 
 watch(
@@ -99,9 +114,11 @@ watch(
     if (loggedIn) {
       loadGroups(true)
       loadResources(true)
+      loadEvents(true)
     } else {
       groupStore.reset()
       resourceStore.reset()
+      eventStore.reset()
     }
   }
 )
@@ -112,6 +129,7 @@ watch(
     if (isAdminNow && !wasAdmin) {
       loadGroups(true)
       loadResources(true)
+      loadEvents(true)
     }
   }
 )
@@ -147,7 +165,10 @@ watch(
           <span class="widget-title">Upcoming Events</span>
           <i class="fas fa-calendar" style="color: var(--mint-green);"></i>
         </div>
-        <div class="widget-value">3</div>
+        <div class="widget-value">
+          <span v-if="loadingEvents">…</span>
+          <span v-else>{{ upcomingEventCount }}</span>
+        </div>
         <div class="widget-footer">
           <RouterLink to="/events" style="color: var(--dark-green);">View calendar →</RouterLink>
         </div>

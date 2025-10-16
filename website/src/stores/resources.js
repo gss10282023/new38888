@@ -23,7 +23,8 @@ export const useResourceStore = defineStore('resources', {
     listError: null,
     uploading: false,
     uploadingCoverIds: {},
-    deletingIds: {}
+    deletingIds: {},
+    activeUserId: null
   }),
   actions: {
     reset() {
@@ -34,17 +35,29 @@ export const useResourceStore = defineStore('resources', {
       this.uploading = false
       this.uploadingCoverIds = {}
       this.deletingIds = {}
+      this.activeUserId = null
     },
 
     async fetchResources({ forceRefresh = false } = {}) {
       if (this.loadingList) return this.items
+
+      const auth = useAuthStore()
+      const userId = auth.user?.id ?? null
+      if (!userId) {
+        this.reset()
+        return []
+      }
+      if (this.activeUserId !== userId) {
+        this.reset()
+        this.activeUserId = userId
+      }
+
       if (this.listLoaded && !forceRefresh) return this.items
 
       this.loadingList = true
       this.listError = null
 
       try {
-        const auth = useAuthStore()
         const response = await auth.authenticatedFetch('/resources/')
         const data = await safeJson(response)
 
