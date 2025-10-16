@@ -35,6 +35,9 @@ urlpatterns = [
     # Events endpoints
     path('api/events/', include('events.urls', namespace='events')),
 
+    # Announcements endpoints
+    path('api/announcements/', include('announcements.urls', namespace='announcements')),
+
     # Chat endpoints
     path('api/', include(('chat.urls', 'chat'), namespace='chat')),
 
