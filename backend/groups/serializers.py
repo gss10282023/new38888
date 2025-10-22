@@ -125,3 +125,70 @@ class GroupDetailSerializer(GroupSummarySerializer):
 
     class Meta(GroupSummarySerializer.Meta):
         fields = GroupSummarySerializer.Meta.fields + ["members", "milestones"]
+
+
+class GroupMemberCreateSerializer(serializers.Serializer):
+    userId = serializers.IntegerField()
+    role = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+
+class GroupCreateSerializer(serializers.Serializer):
+    groupId = serializers.CharField(
+        max_length=50, required=False, allow_blank=True, allow_null=True
+    )
+    name = serializers.CharField(max_length=255)
+    track = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    status = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    mentorId = serializers.IntegerField(required=False, allow_null=True)
+    members = GroupMemberCreateSerializer(many=True, required=False)
+
+    def validate_groupId(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        group_id = value.strip()
+        if not group_id:
+            return None
+        if Group.objects.filter(pk=group_id).exists():
+            raise serializers.ValidationError("Group ID already exists.")
+        return group_id
+
+    def validate_mentorId(self, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if not User.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("Mentor not found.")
+        return value
+
+    def validate_members(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one member is required.")
+
+        user_ids = []
+        seen = set()
+        for item in value:
+            user_id = item.get("userId")
+            if user_id in seen:
+                raise serializers.ValidationError("Duplicate member detected.")
+            seen.add(user_id)
+            user_ids.append(user_id)
+
+        existing_ids = set(
+            User.objects.filter(id__in=user_ids).values_list("id", flat=True)
+        )
+        missing = [user_id for user_id in user_ids if user_id not in existing_ids]
+        if missing:
+            missing_str = ", ".join(str(uid) for uid in missing)
+            raise serializers.ValidationError(
+                f"User ID(s) {missing_str} do not exist."
+            )
+
+        normalised = []
+        for item in value:
+            normalised.append(
+                {
+                    "userId": item.get("userId"),
+                    "role": (item.get("role") or "student").strip() or "student",
+                }
+            )
+
+        return normalised

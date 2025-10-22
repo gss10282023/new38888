@@ -56,7 +56,7 @@ export const useGroupStore = defineStore('groups', {
         const response = await auth.authenticatedFetch('/groups/my-groups/')
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '无法获取群组列表')
+          throw new Error(data?.error || 'Failed to load groups')
         }
 
         this.myGroups = Array.isArray(data?.groups) ? data.groups : []
@@ -101,7 +101,7 @@ export const useGroupStore = defineStore('groups', {
         const response = await auth.authenticatedFetch('/groups/')
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '无法获取全部群组')
+          throw new Error(data?.error || 'Failed to load all groups')
         }
 
         this.allGroups = Array.isArray(data?.groups) ? data.groups : []
@@ -148,7 +148,7 @@ export const useGroupStore = defineStore('groups', {
         const response = await auth.authenticatedFetch(`/groups/${groupId}/`)
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '无法获取群组详情')
+          throw new Error(data?.error || 'Failed to load group details')
         }
 
         this.groupsById[groupId] = data
@@ -192,7 +192,7 @@ export const useGroupStore = defineStore('groups', {
 
       const data = await safeJson(response)
       if (!response.ok) {
-        throw new Error(data?.error || '更新任务状态失败')
+        throw new Error(data?.error || 'Failed to update task status')
       }
 
       const group = this.groupsById[groupId]
@@ -210,7 +210,7 @@ export const useGroupStore = defineStore('groups', {
       if (!groupId || !milestoneId) return null
       const trimmed = String(name || '').trim()
       if (!trimmed) {
-        throw new Error('任务名称不能为空')
+        throw new Error('Task name cannot be empty')
       }
 
       const auth = useAuthStore()
@@ -225,7 +225,7 @@ export const useGroupStore = defineStore('groups', {
 
       const data = await safeJson(response)
       if (!response.ok) {
-        throw new Error(data?.error || '无法创建任务')
+        throw new Error(data?.error || 'Failed to create task')
       }
 
       const group = this.groupsById[groupId]

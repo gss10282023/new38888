@@ -59,7 +59,7 @@ export const useChatStore = defineStore('chat', {
         )
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '无法获取消息列表')
+          throw new Error(data?.error || 'Failed to load messages')
         }
 
         const normalised = this.normaliseMessages(data?.messages)
@@ -90,11 +90,11 @@ export const useChatStore = defineStore('chat', {
     },
 
     async sendMessage(groupId, { text = '', attachments = [] } = {}) {
-      if (!groupId) throw new Error('缺少群组 ID')
+      if (!groupId) throw new Error('Missing group ID')
       const auth = useAuthStore()
 
       if (this.sendingByGroup[groupId]) {
-        throw new Error('正在发送上一条消息，请稍等')
+        throw new Error('Still sending the previous message, please wait')
       }
       this.sendingByGroup = { ...this.sendingByGroup, [groupId]: true }
 
@@ -116,7 +116,7 @@ export const useChatStore = defineStore('chat', {
         })
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '发送消息失败')
+          throw new Error(data?.error || 'Failed to send message')
         }
 
         const normalised = this.normaliseMessages([data])
@@ -138,7 +138,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     async uploadAttachment(file) {
-      if (!file) throw new Error('没有选择文件')
+      if (!file) throw new Error('No file selected')
       const auth = useAuthStore()
       const tmpId = `${Date.now()}-${file.name}`
       this.uploadingFiles = {
@@ -156,7 +156,7 @@ export const useChatStore = defineStore('chat', {
         })
         const data = await safeJson(response)
         if (!response.ok || !data?.url) {
-          throw new Error(data?.error || '上传失败')
+          throw new Error(data?.error || 'Failed to upload file')
         }
 
         this.uploadingFiles = {

@@ -418,7 +418,7 @@ const deleteEvent = async (eventObj) => {
     }
   } catch (error) {
     console.error(error)
-    alert(error.message || '删除失败，请稍后重试。')
+    alert(error.message || 'Deletion failed, please try again later.')
   }
 }
 
@@ -513,7 +513,7 @@ const submitCreate = async () => {
   }
 
   if (!payload.title || !payload.date || !payload.time || !payload.location) {
-    createError.value = '请完整填写必填项'
+    createError.value = 'Please complete all required fields'
     return
   }
 
@@ -523,7 +523,7 @@ const submitCreate = async () => {
     createError.value = null
   } catch (error) {
     console.error(error)
-    createError.value = error.message || '创建活动失败，请稍后再试'
+    createError.value = error.message || 'Failed to create event, please try again later'
   }
 }
 

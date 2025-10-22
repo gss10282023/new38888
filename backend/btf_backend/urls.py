@@ -26,6 +26,9 @@ urlpatterns = [
     # User profile endpoints
     path('api/users/', include('users.urls', namespace='users')),
 
+    # Admin dashboard endpoints
+    path('api/admin/', include('users.admin_urls', namespace='admin_panel')),
+
     # Group management endpoints
     path('api/groups/', include('groups.urls', namespace='groups')),
 

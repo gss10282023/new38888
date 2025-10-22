@@ -70,7 +70,7 @@ export const useAuthStore = defineStore('auth', {
 
       const data = await safeJson(res)
       if (!res.ok) {
-        throw new Error(data?.error || '验证码无效或已过期')
+        throw new Error(data?.error || 'The verification code is invalid or has expired')
       }
 
       this.setSession({
@@ -199,10 +199,12 @@ export const useAuthStore = defineStore('auth', {
           const { useGroupStore } = require('@/stores/groups')
           const { useResourceStore } = require('@/stores/resources')
           const { useEventStore } = require('@/stores/events')
+          const { useAnnouncementStore } = require('@/stores/announcements')
 
           useGroupStore().reset()
           useResourceStore().reset()
           useEventStore().reset()
+          useAnnouncementStore().reset()
         } catch {
           // ignore require issues (e.g. during hydration in non-module context)
         }

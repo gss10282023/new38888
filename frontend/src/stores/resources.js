@@ -62,7 +62,7 @@ export const useResourceStore = defineStore('resources', {
         const data = await safeJson(response)
 
         if (!response.ok) {
-          throw new Error(data?.error || '无法获取资源列表')
+          throw new Error(data?.error || 'Failed to load resources')
         }
 
         const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []
@@ -83,10 +83,10 @@ export const useResourceStore = defineStore('resources', {
 
     async createResource({ title, description, type, role, file }) {
       if (this.uploading) {
-        throw new Error('另一个上传正在进行，请稍候')
+        throw new Error('Another upload is in progress, please wait')
       }
       if (!file) {
-        throw new Error('请选择要上传的文件')
+        throw new Error('Please choose a file to upload')
       }
 
       this.uploading = true
@@ -107,7 +107,7 @@ export const useResourceStore = defineStore('resources', {
 
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || data?.detail || '上传资源失败')
+          throw new Error(data?.error || data?.detail || 'Failed to upload resource')
         }
 
         const mapped = mapResource(data)
@@ -120,7 +120,7 @@ export const useResourceStore = defineStore('resources', {
 
     async updateCover(resourceId, file) {
       if (!resourceId || !file) {
-        throw new Error('缺少必要信息，无法更新封面')
+        throw new Error('Missing information, cannot update cover')
       }
 
       this.uploadingCoverIds = { ...this.uploadingCoverIds, [resourceId]: true }
@@ -137,7 +137,7 @@ export const useResourceStore = defineStore('resources', {
 
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '更新封面失败')
+          throw new Error(data?.error || 'Failed to update cover image')
         }
 
         const coverUrl = data.coverImage || null
@@ -164,7 +164,7 @@ export const useResourceStore = defineStore('resources', {
 
         if (!response.ok && response.status !== 204) {
           const data = await safeJson(response)
-          throw new Error(data?.error || '删除资源失败')
+          throw new Error(data?.error || 'Failed to delete resource')
         }
 
         this.items = this.items.filter((item) => item.id !== resourceId)

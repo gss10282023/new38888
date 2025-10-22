@@ -16,7 +16,7 @@
     </div>
 
     <div v-if="!isAdmin" class="alert-warning">
-      只有管理员可以查看全部群组。
+      Only administrators can view the full group list.
     </div>
 
     <div v-else class="card">

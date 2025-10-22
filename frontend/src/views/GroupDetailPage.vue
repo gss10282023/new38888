@@ -82,7 +82,7 @@
         </div>
         <div class="card-content plan-content">
           <div v-if="loading" class="empty-state">Loading plan…</div>
-          <div v-else-if="!milestones.length" class="empty-state">尚未创建任何里程碑。</div>
+          <div v-else-if="!milestones.length" class="empty-state">No milestones have been created yet.</div>
           <template v-else>
             <div
               v-for="m in milestones"
@@ -156,7 +156,7 @@
 
           <div class="chat-messages" ref="msgList">
             <div v-if="chatLoading" class="chat-status">Loading messages…</div>
-            <div v-else-if="!displayMessages.length" class="chat-status">暂时还没有任何消息</div>
+            <div v-else-if="!displayMessages.length" class="chat-status">No messages yet.</div>
             <template v-else>
               <div
                 v-for="message in displayMessages"
@@ -405,7 +405,7 @@ const loadGroup = async (id, { force = false } = {}) => {
     await groupStore.fetchGroupDetail(id, { forceRefresh: force })
   } catch (error) {
     console.error('Failed to load group detail', error)
-    errorMessage.value = error?.message || '无法加载群组信息'
+    errorMessage.value = error?.message || 'Failed to load group information'
   } finally {
     loading.value = false
   }
@@ -424,7 +424,7 @@ const loadChat = async (
     }
   } catch (error) {
     console.error('Failed to load chat messages', error)
-    chatMessageError.value = error?.message || '无法加载聊天消息'
+    chatMessageError.value = error?.message || 'Failed to load chat messages'
   }
 }
 
@@ -483,7 +483,7 @@ const handleAttachmentSelection = async (event) => {
         error: null
       })
     } catch (error) {
-      const message = error?.message || '上传失败'
+      const message = error?.message || 'File upload failed'
       patchAttachment(entry.id, {
         uploading: false,
         error: message
@@ -502,7 +502,7 @@ const sendMessage = async () => {
   const text = newMessage.value.trim()
   if (disableSendButton.value) return
   if (isUploadingAttachment.value) {
-    attachmentError.value = '文件仍在上传，请稍候'
+    attachmentError.value = 'File upload is still in progress, please wait'
     return
   }
 
@@ -524,7 +524,7 @@ const sendMessage = async () => {
     await scrollToBottom()
     focusComposer()
   } catch (error) {
-    chatMessageError.value = error?.message || '发送消息失败'
+    chatMessageError.value = error?.message || 'Failed to send message'
     console.error('Failed to send message', error)
   }
 }
@@ -568,7 +568,7 @@ const toggleTask = async (milestone, task) => {
     await groupStore.setTaskCompletion(groupId.value, task.id, nextState)
   } catch (error) {
     task.completed = previous
-    errorMessage.value = error?.message || '更新任务失败'
+    errorMessage.value = error?.message || 'Failed to update task'
     console.error('Failed to update task', error)
   } finally {
     togglingTaskId.value = null
@@ -577,7 +577,7 @@ const toggleTask = async (milestone, task) => {
 
 const addTask = async (milestone) => {
   if (!groupId.value || !milestone) return
-  const name = window.prompt('请输入任务名称', 'New Task')
+  const name = window.prompt('Enter a task name', 'New Task')
   if (!name) return
 
   errorMessage.value = ''
@@ -585,7 +585,7 @@ const addTask = async (milestone) => {
   try {
     await groupStore.addTask(groupId.value, milestone.id, name)
   } catch (error) {
-    errorMessage.value = error?.message || '创建任务失败'
+    errorMessage.value = error?.message || 'Failed to create task'
     console.error('Failed to create task', error)
   } finally {
     addingTaskFor.value = null

@@ -74,7 +74,7 @@ export const useEventStore = defineStore('events', {
         const data = await safeJson(response)
 
         if (!response.ok) {
-          throw new Error(data?.error || '无法获取活动列表')
+          throw new Error(data?.error || 'Failed to load events')
         }
 
         const results = Array.isArray(data?.results)
@@ -100,7 +100,7 @@ export const useEventStore = defineStore('events', {
 
     async createEvent(payload) {
       if (this.creating) {
-        throw new Error('正在创建另一个活动，请稍候')
+        throw new Error('Another event is currently being created, please wait')
       }
 
       this.creating = true
@@ -114,7 +114,7 @@ export const useEventStore = defineStore('events', {
 
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '创建活动失败')
+          throw new Error(data?.error || 'Failed to create event')
         }
 
         const mapped = mapEvent(data)
@@ -127,7 +127,7 @@ export const useEventStore = defineStore('events', {
 
     async updateCover(eventId, file) {
       if (!eventId || !file) {
-        throw new Error('缺少必要信息，无法更新封面')
+        throw new Error('Missing information, cannot update cover')
       }
 
       this.uploadingCoverIds = { ...this.uploadingCoverIds, [eventId]: true }
@@ -144,7 +144,7 @@ export const useEventStore = defineStore('events', {
 
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.error || '更新封面失败')
+          throw new Error(data?.error || 'Failed to update cover image')
         }
 
         const coverUrl = data.coverImage || null
@@ -159,7 +159,7 @@ export const useEventStore = defineStore('events', {
     },
 
     async registerEvent(eventId) {
-      if (!eventId) throw new Error('无法识别活动')
+      if (!eventId) throw new Error('Unable to identify event')
 
       this.registeringIds = { ...this.registeringIds, [eventId]: true }
       try {
@@ -170,7 +170,7 @@ export const useEventStore = defineStore('events', {
         )
         const data = await safeJson(response)
         if (!response.ok) {
-          throw new Error(data?.message || data?.error || '报名失败')
+          throw new Error(data?.message || data?.error || 'Failed to register for event')
         }
 
         this.items = this.items.map((item) =>
@@ -199,7 +199,7 @@ export const useEventStore = defineStore('events', {
         })
         if (!response.ok && response.status !== 204) {
           const data = await safeJson(response)
-          throw new Error(data?.error || '删除活动失败')
+          throw new Error(data?.error || 'Failed to delete event')
         }
         this.items = this.items.filter((item) => item.id !== eventId)
         return true

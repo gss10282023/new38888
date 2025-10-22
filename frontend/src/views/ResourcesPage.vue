@@ -338,11 +338,11 @@ const submitUpload = async () => {
   uploadError.value = null
   const title = uploadForm.value.title.trim()
   if (!title) {
-    uploadError.value = '请输入资源标题'
+    uploadError.value = 'Please enter a resource title'
     return
   }
   if (!uploadForm.value.file) {
-    uploadError.value = '请选择要上传的文件'
+    uploadError.value = 'Please select a file to upload'
     return
   }
 
@@ -357,7 +357,7 @@ const submitUpload = async () => {
     closeUploadModal()
   } catch (error) {
     console.error(error)
-    uploadError.value = error.message || '上传资源失败，请稍后再试'
+    uploadError.value = error.message || 'Failed to upload resource, please try again later'
   }
 }
 

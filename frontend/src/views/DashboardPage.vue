@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth' // Pinia Auth
 import { useGroupStore } from '@/stores/groups'
 import { useResourceStore } from '@/stores/resources'
 import { useEventStore } from '@/stores/events'
-import { mockAnnouncements } from '../data/mock.js'
+import { useAnnouncementStore } from '@/stores/announcements'
 
 const router = useRouter()
 
@@ -30,7 +30,9 @@ const eventStore = useEventStore()
 const { items: eventItems, loadingList: loadingEvents } = storeToRefs(eventStore)
 const upcomingEvents = computed(() => eventItems.value || [])
 const upcomingEventCount = computed(() => upcomingEvents.value.length)
-const announcements = ref(mockAnnouncements)
+const announcementStore = useAnnouncementStore()
+const { items: announcementItems, loadingList: loadingAnnouncements } = storeToRefs(announcementStore)
+const announcements = computed(() => announcementItems.value || [])
 const announcementsCount = computed(() => announcements.value.length)
 
 const getCurrentDate = () =>
@@ -102,10 +104,20 @@ const loadEvents = async (force = false) => {
   }
 }
 
+const loadAnnouncements = async (force = false) => {
+  if (!auth.isAuthenticated) return
+  try {
+    await announcementStore.fetchAnnouncements({ forceRefresh: force })
+  } catch (error) {
+    console.error('Failed to load announcements', error)
+  }
+}
+
 onMounted(() => {
   loadGroups()
   loadResources()
   loadEvents()
+  loadAnnouncements()
 })
 
 watch(
@@ -115,10 +127,12 @@ watch(
       loadGroups(true)
       loadResources(true)
       loadEvents(true)
+      loadAnnouncements(true)
     } else {
       groupStore.reset()
       resourceStore.reset()
       eventStore.reset()
+      announcementStore.reset()
     }
   }
 )
@@ -130,6 +144,7 @@ watch(
       loadGroups(true)
       loadResources(true)
       loadEvents(true)
+      loadAnnouncements(true)
     }
   }
 )
@@ -180,7 +195,10 @@ watch(
           <span class="widget-title">Recent Announcements</span>
           <i class="fas fa-bullhorn" style="color: var(--air-force-blue);"></i>
         </div>
-        <div class="widget-value">{{ announcementsCount }}</div>
+        <div class="widget-value">
+          <span v-if="loadingAnnouncements">…</span>
+          <span v-else>{{ announcementsCount }}</span>
+        </div>
         <div class="widget-footer">
           <RouterLink to="/announcements" style="color: var(--dark-green);">
             View announcements →
