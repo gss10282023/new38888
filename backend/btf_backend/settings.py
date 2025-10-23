@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third party apps
+    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -78,6 +79,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'btf_backend.wsgi.application'
+ASGI_APPLICATION = 'btf_backend.asgi.application'
 
 # Database
 DATABASES = {
@@ -198,6 +200,39 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
 }
+
+# Realtime messaging / Channels configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
+CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or os.getenv('REDIS_URL')
+if CHANNEL_REDIS_URL:
+    CHANNEL_LAYERS['default'] = {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [CHANNEL_REDIS_URL],
+        },
+    }
+
+# File upload scanning defaults
+FILE_UPLOAD_MAX_BYTES = int(os.getenv('FILE_UPLOAD_MAX_BYTES', str(25 * 1024 * 1024)))
+FILE_UPLOAD_ALLOWED_MIME_TYPES = [
+    mime.strip()
+    for mime in os.getenv(
+        'FILE_UPLOAD_ALLOWED_MIME_TYPES',
+        'application/pdf,image/png,image/jpeg,image/gif,text/plain,video/mp4,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip'
+    ).split(',')
+    if mime.strip()
+]
+FILE_UPLOAD_BLOCKED_EXTENSIONS = [
+    ext.strip().lower()
+    for ext in os.getenv('FILE_UPLOAD_BLOCKED_EXTENSIONS', '.exe,.bat,.sh,.cmd,.msi,.vbs').split(',')
+    if ext.strip()
+]
+FILE_UPLOAD_SCAN_COMMAND = os.getenv('FILE_UPLOAD_SCAN_COMMAND', '').strip() or None
 
 # Logging Configuration
 LOGGING = {

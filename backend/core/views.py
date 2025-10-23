@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
@@ -9,6 +10,8 @@ from rest_framework.response import Response
 from django.core.cache import cache
 from django.db import connection
 import os
+
+from .file_scanner import FileScanError, scan_uploaded_file
 
 
 @api_view(['GET'])
@@ -74,6 +77,24 @@ def upload_file(request):
 
     extension = os.path.splitext(uploaded_file.name)[1]
     storage_path = f'uploads/{uuid4().hex}{extension}'
+
+    try:
+        scan_uploaded_file(uploaded_file)
+    except ValidationError as exc:
+        detail = None
+        if hasattr(exc, "message_dict"):
+            messages = exc.message_dict.get("file")
+            if isinstance(messages, (list, tuple)) and messages:
+                detail = messages[0]
+            elif isinstance(messages, str):
+                detail = messages
+        if detail is None and hasattr(exc, "messages") and exc.messages:
+            detail = exc.messages[0]
+        if detail is None:
+            detail = str(exc)
+        return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+    except FileScanError as exc:
+        return Response({"detail": f"Upload blocked: {exc}"}, status=status.HTTP_400_BAD_REQUEST)
 
     stored_path = default_storage.save(storage_path, uploaded_file)
     file_url = default_storage.url(stored_path)

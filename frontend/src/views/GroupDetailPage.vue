@@ -198,10 +198,27 @@
                     <span class="message-meta">
                       <span class="message-date">{{ formatDate(message.timestamp) }}</span>
                       <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+                      <span
+                        v-if="message.moderationStatus !== 'approved'"
+                        :class="['message-flag', `message-flag--${message.moderationStatus}`]"
+                      >
+                        {{ message.moderationStatus === 'pending' ? 'Pending review' : 'Removed' }}
+                      </span>
                     </span>
                   </div>
-                  <div class="message-text">{{ message.text }}</div>
-                  <div v-if="message.attachments.length" class="message-attachments">
+                  <div
+                    class="message-text"
+                    :class="{ 'message-text--muted': message.isDeleted }"
+                  >
+                    {{ message.displayText }}
+                  </div>
+                  <div v-if="message.showModerationNote" class="message-note">
+                    {{ message.moderationNote }}
+                  </div>
+                  <div
+                    v-if="message.attachments.length && (!message.isDeleted || isModerator)"
+                    class="message-attachments"
+                  >
                     <a
                       v-for="file in message.attachments"
                       :key="file.id"
@@ -471,26 +488,46 @@ const disableSendButton = computed(
   () => !newMessage.value.trim() && readyAttachments.value.length === 0
 )
 
+const isModerator = computed(() => {
+  const currentUser = authStore.user
+  if (!currentUser) return false
+  const elevatedRoles = ['admin', 'supervisor']
+  if (elevatedRoles.includes(currentUser.role) || currentUser.is_staff) return true
+  const mentorId = group.value?.mentor?.id ?? null
+  return mentorId !== null && mentorId === currentUser.id
+})
+
 const displayMessages = computed(() =>
   chatMessages.value.map((message) => {
     const timestamp = message.timestamp
     const attachments = Array.isArray(message.attachments) ? message.attachments : []
+    const isDeleted = Boolean(message.isDeleted)
+    const moderationStatus = message.moderation?.status || 'approved'
+    const moderationNote = message.moderation?.note || ''
+
     return {
       id: message.id,
       author: message.author?.name || message.author || 'Unknown',
       authorId: message.author?.id ?? null,
       text: message.text || '',
+      displayText: isDeleted
+        ? 'This message has been removed by a moderator.'
+        : message.text || '',
       timestamp,
       attachments: attachments.map((file, index) => ({
         id: `${message.id}-${index}`,
-        url: file.file_url || file.url,
+        url: file.url || file.file_url,
         filename: file.filename || 'Attachment',
-        size: file.file_size || file.size || null,
-        mimeType: file.mime_type || file.mimeType || 'application/octet-stream'
+        size: file.size ?? file.file_size ?? null,
+        mimeType: file.mimeType || file.mime_type || 'application/octet-stream'
       })),
       isOwn: authStore.user?.id
         ? message.author?.id === authStore.user.id
-        : false
+        : false,
+      isDeleted,
+      moderationStatus,
+      moderationNote,
+      showModerationNote: Boolean(moderationNote) && (isModerator.value || authStore.user?.id === message.author?.id)
     }
   })
 )
@@ -663,10 +700,17 @@ const sendMessage = async () => {
   }
 }
 
+const activeSocketGroupId = ref(null)
+
 watch(
   groupId,
-  (id) => {
+  (id, previous) => {
+    if (previous && previous !== id) {
+      chatStore.disconnectFromGroup(previous)
+    }
     if (!id) return
+    activeSocketGroupId.value = id
+    chatStore.connectToGroup(id)
     showMembersList.value = false
     loadGroup(id)
     loadChat(id, { append: false })
@@ -833,6 +877,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleOutsideClick)
+  if (activeSocketGroupId.value) {
+    chatStore.disconnectFromGroup(activeSocketGroupId.value)
+  }
 })
 </script>
 
@@ -1302,6 +1349,52 @@ onBeforeUnmount(() => {
   color: inherit;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.message-text--muted {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.message-note {
+  font-size: 0.8rem;
+  background: rgba(204, 61, 85, 0.08);
+  color: #c73c51;
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+}
+
+.message.own .message-note {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.message-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.message-flag--pending {
+  background-color: rgba(255, 193, 7, 0.18);
+  color: #a57200;
+}
+
+.message-flag--rejected {
+  background-color: rgba(220, 53, 69, 0.18);
+  color: #b91f33;
+}
+
+.message.own .message-flag--pending,
+.message.own .message-flag--rejected {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .message-attachments {

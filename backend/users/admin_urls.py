@@ -1,6 +1,7 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
-from .views import AdminUserViewSet, admin_stats
+from .views import AdminUserViewSet, StudentSupervisorAdminViewSet, admin_stats
 
 app_name = "admin_panel"
 
@@ -25,3 +26,12 @@ urlpatterns = [
     path("users/filters/", admin_user_filters, name="user-filters"),
     path("users/export/", admin_user_export, name="user-export"),
 ]
+
+router = DefaultRouter()
+router.register(
+    "student-supervisors",
+    StudentSupervisorAdminViewSet,
+    basename="student-supervisors",
+)
+
+urlpatterns += router.urls

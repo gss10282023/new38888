@@ -4,7 +4,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -12,10 +12,14 @@ from rest_framework.response import Response
 from core.permissions import IsPlatformAdmin
 from groups.models import Group
 
-from .models import User, UserProfile
+from .models import StudentSupervisor, SupervisorProfile, User, UserProfile
 from .serializers import (
     AdminUserSerializer,
     AdminUserWriteSerializer,
+    StudentSupervisorReadSerializer,
+    StudentSupervisorSelfUpdateSerializer,
+    StudentSupervisorWriteSerializer,
+    SupervisorProfileSerializer,
     UserProfileSerializer,
     UserSerializer,
 )
@@ -27,16 +31,28 @@ class UserViewSet(viewsets.GenericViewSet):
     update their profile information.
     """
 
-    queryset = User.objects.all()
+    queryset = (
+        User.objects.select_related("profile", "supervisor_profile")
+        .prefetch_related(
+            "supervisor_links__supervisor",
+            "supervisor_links__supervisor__supervisor_profile",
+            "supervisee_links__student",
+            "supervisee_links__student__profile",
+        )
+        .all()
+    )
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "put", "patch", "head", "options"]
 
+    def _with_related(self, user_id: int) -> User:
+        return self.get_queryset().get(pk=user_id)
+
     @action(detail=False, methods=["get"], url_path="me", url_name="me")
     def me(self, request):
         """Return the authenticated user's data."""
-        user = request.user
-        UserProfile.objects.get_or_create(user=user)
+        UserProfile.objects.get_or_create(user=request.user)
+        user = self._with_related(request.user.pk)
         serializer = self.get_serializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -55,13 +71,20 @@ class UserViewSet(viewsets.GenericViewSet):
             }
         }
         """
-        user = request.user
+        user = self._with_related(request.user.pk)
         profile, _ = UserProfile.objects.get_or_create(user=user)
 
         profile_payload = request.data.get("profile")
         if profile_payload is not None and not isinstance(profile_payload, dict):
             return Response(
                 {"error": "Profile payload must be an object."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        supervisor_payload = request.data.get("supervisorProfile")
+        if supervisor_payload is not None and not isinstance(supervisor_payload, dict):
+            return Response(
+                {"error": "Supervisor profile payload must be an object."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -73,6 +96,16 @@ class UserViewSet(viewsets.GenericViewSet):
                 partial=True,
             )
             profile_serializer.is_valid(raise_exception=True)
+
+        supervisor_serializer = None
+        if supervisor_payload is not None:
+            supervisor_profile, _ = SupervisorProfile.objects.get_or_create(user=user)
+            supervisor_serializer = SupervisorProfileSerializer(
+                supervisor_profile,
+                data=supervisor_payload,
+                partial=True,
+            )
+            supervisor_serializer.is_valid(raise_exception=True)
 
         updated_fields = []
         track = request.data.get("track")
@@ -89,10 +122,13 @@ class UserViewSet(viewsets.GenericViewSet):
                 if "last_name" in profile_serializer.validated_data:
                     user.last_name = profile_instance.last_name
                     updated_fields.append("last_name")
+            if supervisor_serializer is not None:
+                supervisor_serializer.save()
 
             if updated_fields:
                 user.save(update_fields=list(set(updated_fields)))
 
+        user = self._with_related(user.pk)
         serializer = self.get_serializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -146,7 +182,16 @@ class AdminUserViewSet(viewsets.GenericViewSet):
     ViewSet that powers the admin user management table.
     """
 
-    queryset = User.objects.select_related("profile").all()
+    queryset = (
+        User.objects.select_related("profile", "supervisor_profile")
+        .prefetch_related(
+            "supervisor_links__supervisor",
+            "supervisor_links__supervisor__supervisor_profile",
+            "supervisee_links__student",
+            "supervisee_links__student__profile",
+        )
+        .all()
+    )
     permission_classes = [IsAuthenticated, IsPlatformAdmin]
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     serializer_class = AdminUserSerializer
@@ -357,3 +402,123 @@ class AdminUserViewSet(viewsets.GenericViewSet):
             )
 
         return response
+
+
+class StudentSupervisorAdminViewSet(viewsets.ModelViewSet):
+    """
+    Administrative endpoints for managing student-supervisor relationships.
+    """
+
+    queryset = (
+        StudentSupervisor.objects.select_related(
+            "student",
+            "student__profile",
+            "supervisor",
+            "supervisor__supervisor_profile",
+        )
+        .all()
+        .order_by("-created_at", "-id")
+    )
+    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+
+    def get_serializer_class(self):
+        if self.action in {"create", "update", "partial_update"}:
+            return StudentSupervisorWriteSerializer
+        return StudentSupervisorReadSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        request = self.request
+
+        student_id = request.query_params.get("studentId")
+        if student_id:
+            try:
+                queryset = queryset.filter(student_id=int(student_id))
+            except (TypeError, ValueError):
+                pass
+
+        supervisor_id = request.query_params.get("supervisorId")
+        if supervisor_id:
+            try:
+                queryset = queryset.filter(supervisor_id=int(supervisor_id))
+            except (TypeError, ValueError):
+                pass
+
+        relationship_type = (request.query_params.get("relationshipType") or "").strip()
+        if relationship_type:
+            queryset = queryset.filter(relationship_type=relationship_type)
+
+        return queryset.order_by("-created_at", "-id")
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        output = StudentSupervisorReadSerializer(
+            instance,
+            context=self.get_serializer_context(),
+        )
+        headers = self.get_success_headers(output.data)
+        return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        updated_instance = serializer.save()
+        output = StudentSupervisorReadSerializer(
+            updated_instance,
+            context=self.get_serializer_context(),
+        )
+        return Response(output.data, status=status.HTTP_200_OK)
+
+
+class MyStudentSupervisorViewSet(
+    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Endpoints for participants to review and acknowledge their supervisor links.
+    """
+
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_queryset(self):
+        user = self.request.user
+        return (
+            StudentSupervisor.objects.select_related(
+                "student",
+                "student__profile",
+                "supervisor",
+                "supervisor__supervisor_profile",
+            )
+            .filter(Q(student=user) | Q(supervisor=user))
+            .order_by("-created_at", "-id")
+        )
+
+    def get_serializer_class(self):
+        if self.action == "partial_update":
+            return StudentSupervisorSelfUpdateSerializer
+        return StudentSupervisorReadSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page if page is not None else queryset, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated_instance = serializer.save()
+        read_serializer = StudentSupervisorReadSerializer(
+            updated_instance,
+            context=self.get_serializer_context(),
+        )
+        return Response(read_serializer.data, status=status.HTTP_200_OK)

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -72,10 +73,14 @@ class UserProfile(models.Model):
 
     # 兴趣领域 - 使用 JSONField 存储列表
     areas_of_interest = models.JSONField(default=list, blank=True)
+    controlled_interests = models.JSONField(default=list, blank=True)
 
     # 学校信息
     school_name = models.CharField(max_length=255, blank=True)
     year_level = models.IntegerField(null=True, blank=True)
+
+    guardian_email = models.EmailField(blank=True)
+    supervisor_email = models.EmailField(blank=True)
 
     # 地理位置
     country = models.CharField(max_length=100, blank=True)
@@ -84,6 +89,7 @@ class UserProfile(models.Model):
     # 其他信息
     availability = models.TextField(blank=True)
     bio = models.TextField(blank=True, help_text='个人简介')
+    join_permission_granted = models.BooleanField(default=False)
 
     # 时间戳
     created_at = models.DateTimeField(auto_now_add=True)
@@ -96,3 +102,91 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"Profile of {self.user.email}"
+
+
+class SupervisorProfile(models.Model):
+    """
+    Stores compliance and organisation details for supervisors/mentors.
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="supervisor_profile",
+    )
+    organisation = models.CharField(max_length=255, blank=True)
+    phone_number = models.CharField(max_length=50, blank=True)
+    wwcc_number = models.CharField(max_length=100, blank=True)
+    wwcc_expiry = models.DateField(null=True, blank=True)
+    wwcc_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supervisor_profiles"
+        verbose_name = "Supervisor Profile"
+        verbose_name_plural = "Supervisor Profiles"
+
+    def __str__(self) -> str:
+        return f"Supervisor profile for {self.user.email}"
+
+
+class StudentSupervisor(models.Model):
+    """
+    Junction table linking students with their supervisors/guardians.
+    """
+
+    RELATIONSHIP_SUPERVISOR = "supervisor"
+    RELATIONSHIP_GUARDIAN = "guardian"
+    RELATIONSHIP_MENTOR = "mentor"
+    RELATIONSHIP_CHOICES = [
+        (RELATIONSHIP_SUPERVISOR, "Supervisor"),
+        (RELATIONSHIP_GUARDIAN, "Guardian"),
+        (RELATIONSHIP_MENTOR, "Mentor"),
+    ]
+
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="supervisor_links",
+    )
+    supervisor = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="supervisee_links",
+    )
+    relationship_type = models.CharField(
+        max_length=32,
+        choices=RELATIONSHIP_CHOICES,
+        default=RELATIONSHIP_SUPERVISOR,
+    )
+    join_permission_granted = models.BooleanField(default=False)
+    join_permission_granted_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "student_supervisors"
+        verbose_name = "Student Supervisor Relationship"
+        verbose_name_plural = "Student Supervisor Relationships"
+        unique_together = ("student", "supervisor", "relationship_type")
+        indexes = [
+            models.Index(fields=["student", "relationship_type"]),
+            models.Index(fields=["supervisor"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student.email} ↔ {self.supervisor.email} ({self.relationship_type})"
+
+    def set_join_permission(self, granted: bool) -> None:
+        """
+        Toggle the join permission flag and track when it was last granted.
+        """
+
+        granted = bool(granted)
+        if granted and not self.join_permission_granted:
+            self.join_permission_granted_at = timezone.now()
+        elif not granted:
+            self.join_permission_granted_at = None
+        self.join_permission_granted = granted

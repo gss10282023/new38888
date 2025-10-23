@@ -63,13 +63,45 @@
       "firstName": "Yilin",
       "lastName": "Guo",
       "areasOfInterest": ["Biomedical Innovations", "AI & Robotics"],
+      "controlledInterests": ["Medical Devices"],
       "schoolName": "Sydney High School",
       "yearLevel": 11,
       "country": "Australia",
       "region": "NSW",
       "availability": "Weekends preferred",
-      "bio": ""
-    }
+      "bio": "",
+      "guardianEmail": "parent@example.com",
+      "supervisorEmail": "admin@example.com",
+      "joinPermissionGranted": true
+    },
+    "supervisorProfile": null,
+    "supervisors": [
+      {
+        "id": 12,
+        "relationshipType": "guardian",
+        "joinPermissionGranted": true,
+        "joinPermissionGrantedAt": "2025-02-01T11:30:00Z",
+        "notes": "Guardian approval received 2025-02-01",
+        "supervisor": {
+          "id": 31,
+          "email": "guardian@example.com",
+          "role": "supervisor",
+          "track": "",
+          "status": "active",
+          "name": "Casey Guardian",
+          "supervisorProfile": {
+            "organization": "Example School",
+            "phoneNumber": "+61 400 000 000",
+            "wwccNumber": "WWCC123456",
+            "wwccExpiry": "2026-06-30",
+            "wwccVerified": true,
+            "createdAt": "2025-01-01T10:00:00Z",
+            "updatedAt": "2025-04-15T10:30:00Z"
+          }
+        }
+      }
+    ],
+    "supervisees": []
   }
 }
 ```
@@ -105,7 +137,12 @@
 `GET /api/users/me/`
 
 *Permissions:* Authenticated  
-*Response 200:* Same payload as in *Verify OTP Code* → `user`.
+*Response 200:* Same payload as in *Verify OTP Code* → `user`. The response exposes:
+
+- `profile`: student-facing information including guardian contact details (`guardianEmail`, `supervisorEmail`) and the `joinPermissionGranted` toggle captured during onboarding.
+- `supervisorProfile`: compliance details for supervisors/mentors (organisation, WWCC number/expiry, phone). `null` when the signed-in user is a student.
+- `supervisors`: relationships where the signed-in user is the student, including relationship type, join-permission status, and the linked supervisor's summary profile.
+- `supervisees`: relationships where the signed-in user supervises other students (empty for students).
 
 ### Update Current User
 `PUT /api/users/me/` or `PATCH /api/users/me/`
@@ -117,12 +154,88 @@
   "track": "Global",
   "profile": {
     "areasOfInterest": ["Synthetic Biology"],
-    "availability": "Weekdays 17:00–20:00"
+    "availability": "Weekdays 17:00–20:00",
+    "controlledInterests": ["AI & Data Science"],
+    "guardianEmail": "guardian@example.com",
+    "joinPermissionGranted": true
+  },
+  "supervisorProfile": {
+    "organization": "Innovation High School",
+    "phoneNumber": "+61 400 000 000",
+    "wwccNumber": "WWCC123456",
+    "wwccExpiry": "2026-06-30"
   }
 }
 ```
 
 *Response 200:* Updated user document (same structure as *Get Current User*).
+
+---
+
+### List My Supervisor Relationships
+`GET /api/users/me/supervisors/`
+
+*Permissions:* Authenticated  
+Returns the relationships where the signed-in user participates either as a student or as a supervisor/mentor. Standard pagination (`page`, `page_size`) applies.
+
+*Response 200 (paginated):*
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 12,
+      "student": {
+        "id": 2,
+        "email": "student@example.com",
+        "role": "student",
+        "track": "AUS-NSW",
+        "status": "active",
+        "name": "Yilin Guo",
+        "supervisorProfile": null
+      },
+      "supervisor": {
+        "id": 31,
+        "email": "guardian@example.com",
+        "role": "supervisor",
+        "track": "",
+        "status": "active",
+        "name": "Casey Guardian",
+        "supervisorProfile": {
+          "organization": "Example School",
+          "phoneNumber": "+61 400 000 000",
+          "wwccNumber": "WWCC123456",
+          "wwccExpiry": "2026-06-30",
+          "wwccVerified": true,
+          "createdAt": "2025-01-01T10:00:00Z",
+          "updatedAt": "2025-04-15T10:30:00Z"
+        }
+      },
+      "relationshipType": "guardian",
+      "joinPermissionGranted": true,
+      "joinPermissionGrantedAt": "2025-02-01T11:30:00Z",
+      "notes": "Guardian approval received 2025-02-01",
+      "createdAt": "2025-01-15T04:12:00Z",
+      "updatedAt": "2025-02-01T11:30:00Z"
+    }
+  ]
+}
+```
+
+### Toggle Join Permission
+`PATCH /api/users/me/supervisors/{id}/`
+
+*Permissions:* Authenticated (relationship participant)  
+Updates the `joinPermissionGranted` flag for the specified relationship. Only users involved in the relationship (student or supervisor) may call the endpoint.
+
+*Body:*
+```json
+{ "joinPermissionGranted": true }
+```
+
+*Response 200:* Updated relationship object (same structure as list response).
 
 ---
 
@@ -232,6 +345,25 @@
 `GET /api/admin/users/export/`
 
 *Response:* CSV attachment (`text/csv`) containing the filtered dataset with full profile columns.
+
+### Manage Student–Supervisor Links
+- `GET /api/admin/student-supervisors/` → list relationships (supports `studentId`, `supervisorId`, `relationshipType`, pagination).
+- `POST /api/admin/student-supervisors/` → create a new link.
+- `PATCH /api/admin/student-supervisors/<id>/` → update relationship metadata or toggle join permission.
+- `DELETE /api/admin/student-supervisors/<id>/` → remove a link.
+
+*Create Body Example:*
+```json
+{
+  "studentId": 2,
+  "supervisorId": 31,
+  "relationshipType": "guardian",
+  "joinPermissionGranted": true,
+  "notes": "Guardian approval received 2025-02-01"
+}
+```
+
+*List Response (paginated):* same structure as *List My Supervisor Relationships*.
 
 ---
 
@@ -362,12 +494,24 @@ Returns groups where the requester is a member or mentor. Response matches *List
           "file_size": 102400,
           "mime_type": "application/pdf"
         }
-      ]
+      ],
+      "isDeleted": false,
+      "deletedAt": null,
+      "deletedBy": null,
+      "moderation": {
+        "status": "approved",
+        "note": null,
+        "moderatedAt": null,
+        "moderatedBy": null
+      }
     }
   ],
   "hasMore": false
 }
 ```
+
+Non-moderators will only see active messages; removed or rejected content is
+suppressed automatically.
 
 ### Send Message
 `POST /api/groups/<group_id>/messages`
@@ -388,6 +532,35 @@ Returns groups where the requester is a member or mentor. Response matches *List
 ```
 
 *Response 201:* Message document (same structure as in *List Messages*).
+
+### Moderate Message
+`PATCH /api/groups/<group_id>/messages/<message_id>`
+
+*Permissions:* Group mentor, supervisor, platform admin, or staff.  
+*Body Example:*
+```json
+{
+  "moderationStatus": "rejected",
+  "moderationNote": "Removed due to inappropriate language"
+}
+```
+
+Setting `restore: true` in the payload clears a previous soft delete. Response
+returns the updated message document.
+
+### Soft Delete Message
+`DELETE /api/groups/<group_id>/messages/<message_id>`
+
+Marks the message as deleted without removing it from the database. The
+response (200) returns the updated message record (`isDeleted: true`), which is
+only visible to moderators.
+
+### Realtime Updates
+
+`ws/chat/groups/<group_id>/` — JWT-authenticated WebSocket endpoint. Clients
+receive `message.created`, `message.updated`, and `message.deleted` events with
+the same payload shape as the REST responses. Supply the access token via the
+`token` query parameter, e.g. `ws://localhost:8000/ws/chat/groups/BTF046/?token=<jwt>`.
 
 ---
 
@@ -428,6 +601,10 @@ If a dependency fails, the endpoint returns HTTP 503 with `status: "unhealthy"` 
   "mimeType": "application/pdf"
 }
 ```
+
+Files are validated for size, extension, and optionally scanned via the
+configured antivirus command. Suspicious uploads return HTTP 400 with an error
+descriptor and are not persisted.
 
 ---
 

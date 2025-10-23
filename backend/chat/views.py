@@ -10,8 +10,10 @@ from rest_framework.response import Response
 
 from groups.models import Group
 
-from .models import Message, MessageAttachment
+from .models import Message
+from .permissions import user_can_moderate_group_chat, user_has_group_access
 from .serializers import MessageSerializer
+from .services import broadcast_message_event, create_message, serialize_message
 
 
 class MessageViewSet(viewsets.ViewSet):
@@ -27,10 +29,16 @@ class MessageViewSet(viewsets.ViewSet):
         group = self._get_group_or_403(group_id, request.user)
         queryset = (
             Message.objects.filter(group=group)
-            .select_related("author")
+            .select_related("author", "deleted_by", "moderated_by")
             .prefetch_related("attachments")
             .order_by("-created_at", "-id")
         )
+
+        can_moderate = user_can_moderate_group_chat(request.user, group)
+        if not can_moderate:
+            queryset = queryset.filter(is_deleted=False).exclude(
+                moderation_status=Message.ModerationStatus.REJECTED
+            )
 
         before_param = request.query_params.get("before")
         if before_param:
@@ -52,7 +60,7 @@ class MessageViewSet(viewsets.ViewSet):
         has_more = len(messages) > page_size
         messages = messages[:page_size]
 
-        serializer = MessageSerializer(messages, many=True)
+        serializer = MessageSerializer(messages, many=True, context={"user": request.user})
         return Response(
             {
                 "messages": serializer.data,
@@ -64,74 +72,102 @@ class MessageViewSet(viewsets.ViewSet):
     def create(self, request, group_id: str) -> Response:
         group = self._get_group_or_403(group_id, request.user)
 
-        text = (request.data.get("text") or "").strip()
+        text = request.data.get("text", "")
         attachments_payload = request.data.get("attachments") or []
 
-        if not text and not attachments_payload:
-            raise ValidationError("Message text or attachments are required.")
+        message = create_message(group, request.user, text, attachments_payload)
 
-        message = Message.objects.create(
-            group=group,
-            author=request.user,
-            text=text,
+        response_serializer = MessageSerializer(message, context={"user": request.user})
+
+        broadcast_message_event(
+            str(group.pk),
+            "message.created",
+            serialize_message(message, for_user=None),
         )
 
-        attachments_to_create: list[MessageAttachment] = []
-        for item in attachments_payload:
-            if not isinstance(item, dict):
-                raise ValidationError({"attachments": "Each attachment must be an object."})
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-            file_url = item.get("url") or item.get("file_url")
-            filename = item.get("filename")
-            file_size = item.get("size") or item.get("file_size")
-            mime_type = item.get("mimeType") or item.get("mime_type") or ""
+    def partial_update(self, request, group_id: str, pk: str | None = None) -> Response:
+        group = self._get_group_or_403(group_id, request.user)
+        message = self._get_message_or_404(group, pk)
 
-            if not file_url:
-                raise ValidationError({"attachments": "Attachment is missing url."})
-            if not filename:
-                raise ValidationError({"attachments": "Attachment is missing filename."})
+        if not user_can_moderate_group_chat(request.user, group):
+            raise PermissionDenied("You do not have permission to moderate messages.")
 
-            try:
-                file_size_value = int(file_size) if file_size is not None else 0
-            except (TypeError, ValueError):
-                raise ValidationError({"attachments": "Attachment size must be an integer."})
+        moderation_status = request.data.get("moderationStatus")
+        moderation_note = request.data.get("moderationNote")
+        restore_flag = request.data.get("restore")
 
-            attachments_to_create.append(
-                MessageAttachment(
-                    message=message,
-                    file_url=file_url,
-                    filename=filename,
-                    file_size=file_size_value,
-                    mime_type=mime_type or "application/octet-stream",
-                )
-            )
+        updates: list[str] = []
 
-        if attachments_to_create:
-            MessageAttachment.objects.bulk_create(attachments_to_create)
+        if moderation_status is not None:
+            if moderation_status not in Message.ModerationStatus.values:
+                raise ValidationError({"moderationStatus": "Invalid moderation status."})
+            message.moderation_status = moderation_status
+            message.moderated_at = timezone.now()
+            message.moderated_by = request.user
+            updates.extend(["moderation_status", "moderated_at", "moderated_by"])
 
-        message = (
-            Message.objects.select_related("author")
-            .prefetch_related("attachments")
-            .get(pk=message.pk)
+        if moderation_note is not None:
+            message.moderation_note = str(moderation_note or "").strip()
+            updates.append("moderation_note")
+
+        if restore_flag:
+            message.is_deleted = False
+            message.deleted_at = None
+            message.deleted_by = None
+            updates.extend(["is_deleted", "deleted_at", "deleted_by"])
+
+        if not updates:
+            raise ValidationError("No valid fields provided for update.")
+
+        message.save(update_fields=list(set(updates)))
+        message.refresh_from_db()
+
+        response_serializer = MessageSerializer(message, context={"user": request.user})
+        broadcast_message_event(
+            str(group.pk),
+            "message.updated",
+            serialize_message(message, for_user=None),
         )
-        serializer = MessageSerializer(message)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    def destroy(self, request, group_id: str, pk: str | None = None) -> Response:
+        group = self._get_group_or_403(group_id, request.user)
+        message = self._get_message_or_404(group, pk)
+
+        if not user_can_moderate_group_chat(request.user, group):
+            raise PermissionDenied("You do not have permission to delete messages.")
+
+        if not message.is_deleted:
+            message.is_deleted = True
+            message.deleted_at = timezone.now()
+            message.deleted_by = request.user
+            message.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+        message.refresh_from_db()
+
+        serializer = MessageSerializer(message, context={"user": request.user})
+        broadcast_message_event(
+            str(group.pk),
+            "message.deleted",
+            serialize_message(message, for_user=None),
+        )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def _get_group_or_403(self, group_id: str, user) -> Group:
         group = get_object_or_404(Group.objects.select_related("mentor"), pk=group_id)
-        if not self._user_has_access(user, group):
+        if not user_has_group_access(user, group):
             raise PermissionDenied("You do not have access to this group.")
         return group
 
-    @staticmethod
-    def _user_has_access(user, group: Group) -> bool:
-        if not user.is_authenticated:
-            return False
-
-        if getattr(user, "role", None) in {"admin", "supervisor"} or user.is_staff:
-            return True
-
-        if group.mentor_id == user.id:
-            return True
-
-        return group.members.filter(user=user).exists()
+    def _get_message_or_404(self, group: Group, pk: str | None) -> Message:
+        if pk is None:
+            raise ValidationError({"id": "Message id is required."})
+        return get_object_or_404(
+            Message.objects.select_related("author", "deleted_by", "moderated_by").prefetch_related("attachments"),
+            pk=pk,
+            group=group,
+        )

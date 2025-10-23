@@ -2,7 +2,43 @@ import { defineStore } from 'pinia'
 import { safeJson } from '@/utils/http'
 import { useAuthStore } from '@/stores/auth'
 
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
+).replace(/\/$/, '')
+const WS_BASE_URL = (import.meta.env.VITE_WS_BASE_URL || '').replace(/\/$/, '')
 const DEFAULT_LIMIT = 50
+const RECONNECT_DELAY_MS = 5000
+
+const buildWebSocketUrl = (groupId, token) => {
+  if (!groupId) throw new Error('Missing group identifier')
+  if (!token) throw new Error('Missing access token')
+
+  let base
+  if (WS_BASE_URL) {
+    base = new URL(WS_BASE_URL)
+  } else {
+    base = new URL(API_BASE_URL)
+  }
+
+  let protocol = base.protocol
+  if (protocol === 'http:') protocol = 'ws:'
+  if (protocol === 'https:') protocol = 'wss:'
+  if (protocol !== 'ws:' && protocol !== 'wss:') {
+    protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  }
+
+  let pathBase = base.pathname.replace(/\/$/, '')
+  if (!WS_BASE_URL) {
+    pathBase = pathBase.replace(/\/api$/, '').replace(/\/api\/$/, '').replace(/\/$/, '')
+  }
+
+  return `${protocol}//${base.host}${pathBase}/ws/chat/groups/${encodeURIComponent(groupId)}/?token=${encodeURIComponent(token)}`
+}
+
+const sortByTimestamp = (messages) =>
+  [...messages].sort(
+    (a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+  )
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -11,10 +47,14 @@ export const useChatStore = defineStore('chat', {
     hasMoreByGroup: {},
     errorByGroup: {},
     sendingByGroup: {},
-    uploadingFiles: {}
+    uploadingFiles: {},
+    socketByGroup: {},
+    socketStatusByGroup: {},
+    socketRetryByGroup: {}
   }),
   actions: {
     reset() {
+      Object.keys(this.socketByGroup || {}).forEach((groupId) => this.disconnectFromGroup(groupId))
       this.messagesByGroup = {}
       this.loadingByGroup = {}
       this.hasMoreByGroup = {}
@@ -25,21 +65,223 @@ export const useChatStore = defineStore('chat', {
 
     normaliseMessages(raw = []) {
       return [...raw]
-        .map((item) => ({
-          id: item.id,
-          text: item.text || '',
-          timestamp: item.timestamp,
-          author: {
-            id: item.author?.id ?? null,
-            name: item.author?.name || item.author || 'Unknown'
-          },
-          attachments: Array.isArray(item.attachments) ? item.attachments : []
-        }))
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .map((item, index) => {
+          const timestamp = item.timestamp || item.created_at || item.createdAt || new Date().toISOString()
+          const attachments = Array.isArray(item.attachments)
+            ? item.attachments.map((file, fileIndex) => ({
+                id: file.id ?? `${item.id ?? index}-${fileIndex}`,
+                url: file.file_url || file.url,
+                filename: file.filename || `Attachment ${fileIndex + 1}`,
+                size: file.file_size ?? file.size ?? null,
+                mimeType: file.mime_type || file.mimeType || 'application/octet-stream'
+              }))
+            : []
+
+          const moderationPayload = item.moderation || {}
+
+          return {
+            id: item.id,
+            text: item.text || '',
+            timestamp,
+            author: {
+              id: item.author?.id ?? null,
+              name: item.author?.name || item.author || 'Unknown'
+            },
+            attachments,
+            isDeleted: Boolean(item.isDeleted),
+            deletedAt: item.deletedAt || null,
+            deletedBy: item.deletedBy ?? null,
+            moderation: {
+              status: moderationPayload.status || 'approved',
+              note: moderationPayload.note || null,
+              moderatedAt: moderationPayload.moderatedAt || moderationPayload.moderated_at || null,
+              moderatedBy: moderationPayload.moderatedBy ?? moderationPayload.moderated_by ?? null
+            }
+          }
+        })
+        .filter((item) => item.id !== undefined && item.id !== null)
+        .reduce((acc, item) => {
+          if (!item.timestamp) {
+            item.timestamp = new Date().toISOString()
+          }
+          acc.push(item)
+          return acc
+        }, [])
+    },
+
+    _mergeMessages(groupId, incoming = [], { mode = 'append' } = {}) {
+      const existing = this.messagesByGroup[groupId] || []
+      let combined
+
+      switch (mode) {
+        case 'replace':
+          combined = [...incoming]
+          break
+        case 'prepend':
+          combined = [...incoming, ...existing]
+          break
+        default:
+          combined = [...existing, ...incoming]
+      }
+
+      const dedupedMap = new Map()
+      combined.forEach((message) => {
+        if (!message || message.id === undefined) return
+        const current = dedupedMap.get(message.id) || {}
+        dedupedMap.set(message.id, { ...current, ...message })
+      })
+
+      const deduped = sortByTimestamp([...dedupedMap.values()])
+      this.messagesByGroup = { ...this.messagesByGroup, [groupId]: deduped }
+      return deduped
+    },
+
+    connectToGroup(groupId) {
+      this.ensureSocket(groupId)
+    },
+
+    ensureSocket(groupId) {
+      if (!groupId || typeof window === 'undefined' || !('WebSocket' in window)) {
+        return null
+      }
+
+      const auth = useAuthStore()
+      const token = auth.accessToken
+      if (!token) return null
+
+      const existing = this.socketByGroup[groupId]
+      if (
+        existing &&
+        (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)
+      ) {
+        return existing
+      }
+
+      this._clearReconnect(groupId)
+      return this._openSocket(groupId, token)
+    },
+
+    disconnectFromGroup(groupId) {
+      const socket = this.socketByGroup[groupId]
+      if (socket) {
+        socket._manualClose = true
+        try {
+          socket.close()
+        } catch {}
+      }
+      this._clearReconnect(groupId)
+      const nextSockets = { ...this.socketByGroup }
+      delete nextSockets[groupId]
+      this.socketByGroup = nextSockets
+      const nextStatus = { ...this.socketStatusByGroup }
+      delete nextStatus[groupId]
+      this.socketStatusByGroup = nextStatus
+    },
+
+    _openSocket(groupId, token) {
+      let url
+      try {
+        url = buildWebSocketUrl(groupId, token)
+      } catch (error) {
+        console.error('Failed to build WebSocket URL', error)
+        return null
+      }
+
+      let socket
+      try {
+        socket = new WebSocket(url)
+      } catch (error) {
+        console.error('Failed to open WebSocket', error)
+        return null
+      }
+
+      socket._manualClose = false
+      socket.addEventListener('open', () => {
+        this.socketStatusByGroup = { ...this.socketStatusByGroup, [groupId]: 'open' }
+      })
+      socket.addEventListener('message', (event) => this._handleSocketMessage(groupId, event.data))
+      socket.addEventListener('close', (event) => this._handleSocketClose(groupId, socket, event))
+      socket.addEventListener('error', () => {
+        this.socketStatusByGroup = { ...this.socketStatusByGroup, [groupId]: 'error' }
+      })
+
+      this.socketByGroup = { ...this.socketByGroup, [groupId]: socket }
+      this.socketStatusByGroup = { ...this.socketStatusByGroup, [groupId]: 'connecting' }
+      return socket
+    },
+
+    _handleSocketMessage(groupId, rawMessage) {
+      let parsed
+      try {
+        parsed = JSON.parse(rawMessage)
+      } catch (error) {
+        console.warn('Failed to parse chat socket payload', error)
+        return
+      }
+
+      const { type, payload } = parsed
+      if (type === 'connection.established') {
+        this.socketStatusByGroup = { ...this.socketStatusByGroup, [groupId]: 'open' }
+        return
+      }
+
+      if (type === 'error') {
+        this.errorByGroup = {
+          ...this.errorByGroup,
+          [groupId]: new Error(payload?.detail || 'WebSocket error')
+        }
+        return
+      }
+
+      if (['message.created', 'message.updated', 'message.deleted'].includes(type) && payload) {
+        const normalised = this.normaliseMessages([payload])
+        if (normalised.length) {
+          this._mergeMessages(groupId, normalised, { mode: 'append' })
+        }
+      }
+    },
+
+    _handleSocketClose(groupId, socket, event) {
+      const nextSockets = { ...this.socketByGroup }
+      if (nextSockets[groupId] === socket) {
+        delete nextSockets[groupId]
+        this.socketByGroup = nextSockets
+      }
+      this.socketStatusByGroup = { ...this.socketStatusByGroup, [groupId]: 'closed' }
+
+      if (!socket._manualClose) {
+        this._scheduleReconnect(groupId)
+      }
+    },
+
+    _scheduleReconnect(groupId) {
+      this._clearReconnect(groupId)
+      const timer = setTimeout(() => {
+        const auth = useAuthStore()
+        if (!auth.accessToken) {
+          this._clearReconnect(groupId)
+          return
+        }
+        this.ensureSocket(groupId)
+      }, RECONNECT_DELAY_MS)
+
+      this.socketRetryByGroup = { ...this.socketRetryByGroup, [groupId]: timer }
+    },
+
+    _clearReconnect(groupId) {
+      const timer = this.socketRetryByGroup[groupId]
+      if (timer) {
+        clearTimeout(timer)
+        const nextTimers = { ...this.socketRetryByGroup }
+        delete nextTimers[groupId]
+        this.socketRetryByGroup = nextTimers
+      }
     },
 
     async fetchMessages(groupId, { before = null, limit = DEFAULT_LIMIT, append = false } = {}) {
       if (!groupId) return []
+      this.ensureSocket(groupId)
+
       const auth = useAuthStore()
 
       if (this.loadingByGroup[groupId]) {
@@ -62,24 +304,10 @@ export const useChatStore = defineStore('chat', {
           throw new Error(data?.error || 'Failed to load messages')
         }
 
-        const normalised = this.normaliseMessages(data?.messages)
+        const normalised = sortByTimestamp(this.normaliseMessages(data?.messages))
+        this._mergeMessages(groupId, normalised, { mode: append ? 'prepend' : 'replace' })
 
-        if (append && Array.isArray(this.messagesByGroup[groupId])) {
-          const merged = [...normalised, ...this.messagesByGroup[groupId]]
-          const deduped = []
-          const seen = new Set()
-          merged.forEach((message) => {
-            if (!seen.has(message.id)) {
-              seen.add(message.id)
-              deduped.push(message)
-            }
-          })
-          this.messagesByGroup = { ...this.messagesByGroup, [groupId]: deduped }
-        } else {
-          this.messagesByGroup = { ...this.messagesByGroup, [groupId]: normalised }
-        }
-
-        this.hasMoreByGroup = { ...this.hasMoreByGroup, [groupId]: !!data?.hasMore }
+        this.hasMoreByGroup = { ...this.hasMoreByGroup, [groupId]: Boolean(data?.hasMore) }
         return this.messagesByGroup[groupId]
       } catch (error) {
         this.errorByGroup = { ...this.errorByGroup, [groupId]: error }
@@ -96,6 +324,7 @@ export const useChatStore = defineStore('chat', {
       if (this.sendingByGroup[groupId]) {
         throw new Error('Still sending the previous message, please wait')
       }
+
       this.sendingByGroup = { ...this.sendingByGroup, [groupId]: true }
 
       const payload = {
@@ -120,17 +349,9 @@ export const useChatStore = defineStore('chat', {
         }
 
         const normalised = this.normaliseMessages([data])
-        const existing = this.messagesByGroup[groupId] || []
-        const merged = [...existing, ...normalised]
-        const deduped = []
-        const seen = new Set()
-        merged.forEach((message) => {
-          if (!seen.has(message.id)) {
-            seen.add(message.id)
-            deduped.push(message)
-          }
-        })
-        this.messagesByGroup = { ...this.messagesByGroup, [groupId]: deduped }
+        if (normalised.length) {
+          this._mergeMessages(groupId, normalised, { mode: 'append' })
+        }
         return normalised[0]
       } finally {
         this.sendingByGroup = { ...this.sendingByGroup, [groupId]: false }
@@ -156,7 +377,7 @@ export const useChatStore = defineStore('chat', {
         })
         const data = await safeJson(response)
         if (!response.ok || !data?.url) {
-          throw new Error(data?.error || 'Failed to upload file')
+          throw new Error(data?.detail || data?.error || 'Failed to upload file')
         }
 
         this.uploadingFiles = {

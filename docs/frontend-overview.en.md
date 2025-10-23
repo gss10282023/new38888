@@ -132,10 +132,12 @@ All network calls funnel through `auth.authenticatedFetch`, which injects the be
 - Define environment overrides in `.env.local` (ignored by Git) using Vite’s `VITE_*` convention, e.g.:
   ```
   VITE_API_BASE_URL=https://api.biotechfutures.org/api
+  VITE_WS_BASE_URL=wss://api.biotechfutures.org
   VITE_APP_TITLE=BIOTech Futures Hub
   ```
 - Hash-based routing means the app can be deployed behind any base path without server rewrite rules.
 - Static assets placed under `public/` are served from the app root (`/`), useful for favicons or manifest files.
+- `VITE_WS_BASE_URL` is optional. Configure it when your WebSocket host differs from the API host; otherwise the client derives `ws://` or `wss://` plus the `/ws/chat/...` suffix from `VITE_API_BASE_URL`.
 - Production builds assume the backend sets CORS to allow the frontend origin.
 
 ## 8. Development Workflow
@@ -168,4 +170,4 @@ All network calls funnel through `auth.authenticatedFetch`, which injects the be
 - Backend architecture: `docs/backend-overview.en.md`
 - Chinese localisation: `docs/frontend-overview.zh.md`
 
-_Last updated: October 23, 2025_
+_Last updated: October 24, 2025_

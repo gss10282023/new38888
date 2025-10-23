@@ -60,6 +60,7 @@ backend/
 | `ALLOWED_HOSTS` | 允许访问的域名，逗号分隔。 | `localhost,127.0.0.1` |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | PostgreSQL 连接信息。 | `btf_db`, `btf_user`, 空, `localhost`, `5432` |
 | `REDIS_URL` | Redis 连接串，例如 `redis://127.0.0.1:6379/1`。 | `redis://127.0.0.1:6379/1` |
+| `CHANNEL_REDIS_URL` | 可选项：为 Django Channels 指定 WebSocket 发布/订阅专用 Redis，未设置时回退到 `REDIS_URL` 或内存实现。 | 默认未配置 |
 | `FRONTEND_BASE_URL` | 魔法链接跳转基地址。 | `https://yourdomain.com` |
 | `MAGIC_LINK_EXPIRY_SECONDS` | 魔法链接与 OTP 有效期（秒）。 | `600` |
 | `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL`, `EMAIL_HOST` 等 | 邮件发送设置。 | 控制台输出 |
@@ -166,6 +167,7 @@ User ──1:1── UserProfile
 - **邮件**：默认使用 console backend，将邮件内容打印到日志；生产环境建议接入 Anymail 对接 SendGrid/Mailgun 等服务，并配置 SPF/DKIM。
 - **对象存储**：`django-storages` + `boto3` 与 Vultr S3 兼容存储交互，存储路径分别为 `uploads/`、`resources/files/`、`resources/covers/`、`events/covers/`。
 - **Redis**：通过 `django-redis` 作为默认缓存，既用于魔法链接令牌，也可扩展其他缓存逻辑。
+- **实时消息（Channels）**：群聊 WebSocket 由 Django Channels 驱动，建议配置 `CHANNEL_REDIS_URL`（可复用 `REDIS_URL`）以便所有 ASGI Worker 共用同一 Redis 实例。
 - **DRF Spectacular**：生成 OpenAPI 3.0 文档，提供 Swagger (`/api/docs/`) 与 Redoc (`/api/redoc/`)。
 - **Django Admin**：超级用户可通过 `/admin/` 检视和维护底层数据。
 
@@ -269,4 +271,4 @@ User ──1:1── UserProfile
 - **邮件未送达**：控制台 backend 会在终端输出；若使用真实 SMTP，需检查 SPF/DKIM 和 API Key。
 - **JWT 签名无效**：多实例部署必须共享同一 `SECRET_KEY`，轮换后记得重启 Gunicorn。
 
-_最后更新：2025 年 10 月 23 日_
+_最后更新：2025 年 10 月 24 日_

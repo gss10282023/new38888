@@ -232,7 +232,7 @@
                         :disabled="Boolean(deletingUser[user.id])"
                         title="Delete user"
                       >
-                        <i class="fas fa-trash-alt"></i>
+                        <i :class="deletingUser[user.id] ? 'fas fa-spinner fa-spin' : 'fas fa-trash-alt'"></i>
                       </button>
                     </div>
                   </td>
@@ -532,7 +532,12 @@
             <div class="loading-spinner"></div>
             <p>Loading user information...</p>
           </div>
-          <form v-else @submit.prevent="saveUser" class="modal-form">
+          <form
+            v-else
+            ref="userFormRef"
+            @submit.prevent="saveUser"
+            class="modal-form"
+          >
             <div class="form-grid">
               <div class="form-group">
                 <label class="form-label">Email</label>
@@ -542,6 +547,7 @@
                   class="form-control"
                   :readonly="userModalMode === 'view'"
                   :disabled="isSavingUser"
+                  required
                 />
               </div>
               <div class="form-group">
@@ -651,6 +657,7 @@
           <button
             v-if="userModalMode === 'edit'"
             class="btn btn-outline danger"
+            type="button"
             @click="confirmDeleteUser"
             :disabled="isDeletingUser"
             style="margin-right: auto;"
@@ -658,9 +665,10 @@
             <i v-if="isDeletingUser" class="fas fa-spinner fa-spin"></i>
             <span v-else>Delete</span>
           </button>
-          <button 
-            class="btn btn-outline" 
-            @click="closeUserModal" 
+          <button
+            class="btn btn-outline"
+            type="button"
+            @click="closeUserModal"
             :disabled="isSavingUser || isDeletingUser"
           >
             Close
@@ -668,6 +676,7 @@
           <button
             v-if="userModalMode !== 'view'"
             class="btn btn-primary"
+            type="button"
             @click="saveUser"
             :disabled="isSavingUser || isDeletingUser"
           >
@@ -780,6 +789,7 @@ const showCreateGroup = ref(false)
 
 const userModalMode = ref('view')
 const userModalLoading = ref(false)
+const userFormRef = ref(null)
 
 const userForm = reactive({
   id: null,
@@ -1159,6 +1169,10 @@ const buildUserPayload = () => {
   if (!email) {
     throw new Error('Email is required')
   }
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailPattern.test(email)) {
+    throw new Error('Please enter a valid email address (e.g. name@example.com).')
+  }
 
   const payload = {
     email,
@@ -1220,6 +1234,14 @@ const buildUserPayload = () => {
 }
 
 const saveUser = async () => {
+  const formElement = userFormRef.value
+  if (formElement && typeof formElement.reportValidity === 'function') {
+    const isValid = formElement.reportValidity()
+    if (!isValid) {
+      return
+    }
+  }
+
   try {
     const payload = buildUserPayload()
     if (userModalMode.value === 'create') {
@@ -1233,14 +1255,23 @@ const saveUser = async () => {
   }
 }
 
-const confirmDeleteUser = async () => {
-  if (userModalMode.value !== 'edit' || userForm.id == null) return
-  const confirmed = window.confirm('Delete this user? This action cannot be undone.')
+const confirmDeleteUser = async (userId) => {
+  const targetId = userId ?? userForm.id
+  if (targetId == null) return
+
+  const target =
+    users.value.find((user) => user.id === targetId) ||
+    (userForm.id === targetId ? { name: `${userForm.profile.firstName} ${userForm.profile.lastName}`.trim(), email: userForm.email } : null)
+
+  const displayName = target?.name?.trim() || target?.email || 'this user'
+  const confirmed = window.confirm(`Delete ${displayName}? This action cannot be undone.`)
   if (!confirmed) return
 
   try {
-    await adminStore.deleteUser(userForm.id)
-    showUserModal.value = false
+    await adminStore.deleteUser(targetId)
+    if (showUserModal.value && targetId === userForm.id) {
+      showUserModal.value = false
+    }
   } catch (error) {
     window.alert(error?.message || 'Failed to delete user')
   }

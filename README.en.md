@@ -76,7 +76,7 @@ npm install
 npm run dev            # http://localhost:5173 by default
 ```
 
-Point your browser to http://localhost:5173 and the SPA will proxy API calls to the backend URL configured in `VITE_API_BASE_URL`.
+Point your browser to http://localhost:5173 and the SPA will proxy API calls to the backend URL configured in `VITE_API_BASE_URL`. When hosting the API and Channels server on different origins, add `VITE_API_BASE_URL` and `VITE_WS_BASE_URL` to `frontend/.env.local`.
 
 ---
 
@@ -110,6 +110,17 @@ DEFAULT_FROM_EMAIL=noreply@biotechfutures.org
 ```
 
 The sections below explain how to switch Vultr object storage and configure a production email provider.
+
+---
+
+### Frontend environment (`frontend/.env` or `.env.local`)
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_WS_BASE_URL=ws://127.0.0.1:8000
+```
+
+- `VITE_API_BASE_URL`: base URL (including `/api`) used for REST calls.
+- `VITE_WS_BASE_URL`: optional explicit WebSocket origin for real-time chat. When omitted, the app derives it from `VITE_API_BASE_URL` and automatically switches to `ws://` or `wss://` with the `/ws/chat/...` suffix.
 
 ---
 
@@ -208,4 +219,4 @@ For Chinese documentation, see `README.md` and the `.zh.md` files under `docs/`.
 
 ---
 
-_Last updated: October 23, 2025_
+_Last updated: October 24, 2025_

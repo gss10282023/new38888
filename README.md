@@ -78,7 +78,7 @@ npm install
 npm run dev            # 默认地址 http://localhost:5173
 ```
 
-浏览器访问 http://localhost:5173 即可，并会使用 `VITE_API_BASE_URL` 指定的后端地址。
+浏览器访问 http://localhost:5173 即可，并会使用 `VITE_API_BASE_URL` 指定的后端地址。若前后端分属不同域名，可在 `frontend/.env.local` 里同时配置 `VITE_API_BASE_URL` 与 `VITE_WS_BASE_URL`。
 
 ---
 
@@ -112,6 +112,17 @@ DEFAULT_FROM_EMAIL=noreply@biotechfutures.org
 ```
 
 下一节将介绍如何切换 Vultr 存储和邮件服务。
+
+---
+
+### 前端环境变量 (`frontend/.env` 或 `.env.local`)
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_WS_BASE_URL=ws://127.0.0.1:8000
+```
+
+- `VITE_API_BASE_URL`：前端请求后端 REST API 的基础地址，需包含 `/api` 路径。
+- `VITE_WS_BASE_URL`：可选，用于覆盖 WebSocket 主机（群聊 Channels 连接等实时功能）。未设置时会复用 `VITE_API_BASE_URL` 的域名并自动推断 `ws://`/`wss://` 协议及 `/ws/chat/...` 路径。
 
 ---
 
@@ -201,4 +212,4 @@ DEFAULT_FROM_EMAIL=noreply@biotechfutures.org
 
 ---
 
-_最后更新：2025 年 10 月 23 日_
+_最后更新：2025 年 10 月 24 日_

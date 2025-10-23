@@ -93,7 +93,7 @@ Vitest 脚本：
    chmod +x tests/run-all-tests.sh   # 首次使用需赋权
    ./tests/run-all-tests.sh
    ```
-   > 按顺序执行后端单元/API、跨端流程与前端 Vitest 套件，失败即停止。
+   > 按顺序执行后端单元/API、跨端流程与前端 Vitest 套件；即使单个步骤失败也会继续完成剩余测试，并在最终汇总时返回失败状态。
 
 2. **后端单元/API：**
    ```bash

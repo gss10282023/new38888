@@ -11,6 +11,18 @@ message_list = MessageViewSet.as_view(
     }
 )
 
+message_detail = MessageViewSet.as_view(
+    {
+        "patch": "partial_update",
+        "delete": "destroy",
+    }
+)
+
 urlpatterns = [
     path("groups/<str:group_id>/messages", message_list, name="group-messages"),
+    path(
+        "groups/<str:group_id>/messages/<int:pk>",
+        message_detail,
+        name="group-message-detail",
+    ),
 ]

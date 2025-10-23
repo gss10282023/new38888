@@ -89,6 +89,24 @@
                   placeholder="e.g. NSW"
                 >
               </div>
+              <div class="form-group">
+                <label class="form-label">Guardian Email</label>
+                <input
+                  v-model="form.profile.guardianEmail"
+                  type="email"
+                  class="form-control"
+                  placeholder="guardian@example.com"
+                >
+              </div>
+              <div class="form-group">
+                <label class="form-label">Supervisor Email</label>
+                <input
+                  v-model="form.profile.supervisorEmail"
+                  type="email"
+                  class="form-control"
+                  placeholder="supervisor@example.com"
+                >
+              </div>
             </div>
           </div>
 
@@ -124,6 +142,25 @@
             </div>
           </div>
 
+          <div class="profile-section">
+            <h3 class="profile-section-title">Controlled Interests</h3>
+            <p class="profile-helper">Select from the approved focus areas assigned by the program team.</p>
+            <div class="controlled-interest-grid">
+              <label
+                v-for="option in controlledInterestOptions"
+                :key="option"
+                class="controlled-interest-option"
+              >
+                <input
+                  type="checkbox"
+                  :value="option"
+                  v-model="form.profile.controlledInterests"
+                >
+                <span>{{ option }}</span>
+              </label>
+            </div>
+          </div>
+
           <!-- Availability / Bio -->
           <div class="profile-section">
             <h3 class="profile-section-title">Bio & Availability</h3>
@@ -147,6 +184,17 @@
             </div>
           </div>
 
+          <div class="profile-section">
+            <h3 class="profile-section-title">Permissions</h3>
+            <label class="join-permission-toggle">
+              <input
+                type="checkbox"
+                v-model="form.profile.joinPermissionGranted"
+              >
+              <span>Guardian or supervisor approval has been recorded for program participation.</span>
+            </label>
+          </div>
+
           <div style="display:flex;justify-content:flex-end;gap:1rem;">
             <button class="btn btn-outline" type="button" :disabled="saving" @click="reset">Reset</button>
             <button class="btn btn-primary" type="button" :disabled="saving" @click="save">
@@ -164,6 +212,14 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/auth.js'
 
+const CONTROLLED_INTEREST_OPTIONS = [
+  'Biomedical Engineering',
+  'Genomics & Precision Medicine',
+  'Medical Devices',
+  'Sustainability & Climate',
+  'AI & Data Science'
+]
+
 const authStore = useAuthStore()
 const { user, isAuthenticated } = storeToRefs(authStore)
 
@@ -172,6 +228,8 @@ const saving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const newInterest = ref('')
+const controlledInterestOptions = CONTROLLED_INTEREST_OPTIONS
+
 const form = reactive({
   track: '',
   profile: {
@@ -183,7 +241,11 @@ const form = reactive({
     region: '',
     availability: '',
     bio: '',
-    areasOfInterest: []
+    areasOfInterest: [],
+    controlledInterests: [],
+    guardianEmail: '',
+    supervisorEmail: '',
+    joinPermissionGranted: false
   }
 })
 
@@ -235,6 +297,12 @@ const applyUserToForm = (u) => {
   form.profile.areasOfInterest = Array.isArray(profile.areasOfInterest)
     ? [...profile.areasOfInterest]
     : []
+  form.profile.controlledInterests = Array.isArray(profile.controlledInterests)
+    ? [...profile.controlledInterests]
+    : []
+  form.profile.guardianEmail = profile.guardianEmail || ''
+  form.profile.supervisorEmail = profile.supervisorEmail || ''
+  form.profile.joinPermissionGranted = Boolean(profile.joinPermissionGranted)
 }
 
 watch(user, (val) => {
@@ -291,7 +359,11 @@ const save = async () => {
         region: form.profile.region,
         availability: form.profile.availability,
         bio: form.profile.bio,
-        areasOfInterest: form.profile.areasOfInterest
+        areasOfInterest: form.profile.areasOfInterest,
+        controlledInterests: form.profile.controlledInterests,
+        guardianEmail: form.profile.guardianEmail,
+        supervisorEmail: form.profile.supervisorEmail,
+        joinPermissionGranted: form.profile.joinPermissionGranted
       }
     }
     const updated = await authStore.updateCurrentUser(payload)
@@ -339,6 +411,54 @@ const save = async () => {
 .profile-role {
   font-size: 0.95rem;
   opacity: 0.85;
+}
+
+.profile-helper {
+  margin: 0 0 0.75rem;
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+.controlled-interest-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.controlled-interest-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--white);
+  font-size: 0.9rem;
+  color: var(--charcoal);
+}
+
+.controlled-interest-option input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--dark-green);
+}
+
+.join-permission-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: rgba(1, 113, 81, 0.05);
+  font-size: 0.9rem;
+  color: var(--charcoal);
+}
+
+.join-permission-toggle input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--dark-green);
 }
 
 .profile-content {

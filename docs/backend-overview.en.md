@@ -65,6 +65,7 @@ Important environment variables:
 | `ALLOWED_HOSTS` | Comma-separated hostnames for Django. | `localhost,127.0.0.1` |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | PostgreSQL connection. | `btf_db`, `btf_user`, `""`, `localhost`, `5432` |
 | `REDIS_URL` | Redis connection string (e.g. `redis://127.0.0.1:6379/1`). | `redis://127.0.0.1:6379/1` |
+| `CHANNEL_REDIS_URL` | Optional WebSocket pub/sub Redis endpoint for Django Channels; falls back to `REDIS_URL` or in-memory channel layer locally. | unset |
 | `FRONTEND_BASE_URL` | Used when constructing magic-link callback URLs. | `https://yourdomain.com` |
 | `MAGIC_LINK_EXPIRY_SECONDS` | TTL in seconds for magic link & OTP (default 600). | `600` |
 | `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL`, `EMAIL_HOST`, ... | Email delivery configuration. | Console backend |
@@ -186,6 +187,7 @@ Refer to `docs/API.md` for field-level API schemas.
 - **Email**: default console backend locally; configure Anymail (SendGrid/Mailgun/etc.) via environment variables for production.
 - **Object Storage**: `django-storages` + `boto3`; uploaded files and covers are saved under the `uploads/`, `resources/files/`, `resources/covers/`, and `events/covers/` prefixes.
 - **Redis**: used for magic-link tokens and general caching. Ensure Redis is reachable before allowing logins.
+- **Realtime messaging (Channels)**: group chat WebSocket fan-out uses Django Channels. Configure `CHANNEL_REDIS_URL` (or reuse `REDIS_URL`) so background workers share the same Redis instance.
 - **DRF Spectacular**: generates OpenAPI schema consumed by Swagger/Redoc UIs; customise via `SPECTACULAR_SETTINGS`.
 - **Django Admin**: available at `/admin/` for superusers; use for raw data inspection and migrations.
 
@@ -291,4 +293,4 @@ Key middleware:
 - **Emails not delivered:** With console backend, messages appear in server logs. For real SMTP, confirm SPF/DKIM and Anymail configuration.
 - **JWT invalid signature:** Ensure all servers share the same `SECRET_KEY`; restart Gunicorn after rotations.
 
-_Last updated: October 23, 2025_
+_Last updated: October 24, 2025_

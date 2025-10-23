@@ -93,7 +93,7 @@ Vitest scripts:
    chmod +x tests/run-all-tests.sh   # grant execute permission once
    ./tests/run-all-tests.sh
    ```
-   > Executes backend (unit/API), cross-service flows, and frontend Vitest in order, aborting on first failure.
+   > Executes backend (unit/API), cross-service flows, and frontend Vitest in order; if a step fails it still runs the remaining suites and surfaces the failure in the final exit code.
 
 2. **Backend unit/API tests**
    ```bash

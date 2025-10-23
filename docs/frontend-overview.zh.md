@@ -133,10 +133,12 @@ frontend/
 - 在项目根目录或 `frontend/` 下创建 `.env.local`，通过 Vite `VITE_*` 变量覆盖配置，例如：
   ```
   VITE_API_BASE_URL=https://api.biotechfutures.org/api
+  VITE_WS_BASE_URL=wss://api.biotechfutures.org
   VITE_APP_TITLE=BIOTech Futures Hub
   ```
 - 路由使用 Hash 模式，无需后端额外配置即可部署在任意子路径。
 - `public/` 下的文件会直接复制到最终构建产物根目录，可用于 favicon 或静态 JSON。
+- `VITE_WS_BASE_URL` 可选，用于在 WebSocket 域名与 API 不一致时显式指定；若未设置，前端会基于 `VITE_API_BASE_URL` 自动推断 `ws://`/`wss://` 与 `/ws/chat/...`。
 - 部署前请确认后端已配置 CORS 允许前端域名访问。
 
 ## 8. 开发流程
@@ -169,4 +171,4 @@ frontend/
 - 后端架构说明：`docs/backend-overview.zh.md`
 - 英文版前端文档：`docs/frontend-overview.en.md`
 
-_最后更新：2025 年 10 月 23 日_
+_最后更新：2025 年 10 月 24 日_

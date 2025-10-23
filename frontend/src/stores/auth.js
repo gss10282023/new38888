@@ -200,11 +200,13 @@ export const useAuthStore = defineStore('auth', {
           const { useResourceStore } = require('@/stores/resources')
           const { useEventStore } = require('@/stores/events')
           const { useAnnouncementStore } = require('@/stores/announcements')
+          const { useChatStore } = require('@/stores/chat')
 
           useGroupStore().reset()
           useResourceStore().reset()
           useEventStore().reset()
           useAnnouncementStore().reset()
+          useChatStore().reset()
         } catch {
           // ignore require issues (e.g. during hydration in non-module context)
         }
