@@ -80,7 +80,7 @@
             type="button"
             class="btn btn-primary btn-sm"
             :disabled="creatingMilestone"
-            @click="createMilestone"
+            @click="openMilestoneModal"
           >
             <i
               class="fas"
@@ -135,10 +135,10 @@
                   :class="['task-item', { 'task-item--loading': togglingTaskId === t.id }]"
                   @click="toggleTask(m, t)"
                 >
-                  <div :class="['task-checkbox', { checked: t.completed }]" />
+                  <div :class="['task-checkbox', { checked: t.completed }]">
+                    <i v-if="t.completed" class="fas fa-check"></i>
+                  </div>
                   <div :class="['task-label', { completed: t.completed }]">{{ t.name }}</div>
-                  <i class="fas fa-calendar" style="color:#6c757d;"></i>
-                  <i class="fas fa-user" style="color:#6c757d;"></i>
                 </div>
 
                 <div class="add-task-row">
@@ -146,7 +146,7 @@
                     type="button"
                     class="btn btn-outline btn-sm add-task-btn"
                     :disabled="addingTaskFor === m.id"
-                    @click.stop="addTask(m)"
+                    @click.stop="openTaskModal(m)"
                     title="Add a new task under this milestone"
                   >
                     <i class="fas fa-plus"></i>
@@ -163,7 +163,6 @@
       <!-- 右栏：Discussion -->
       <section class="pane pane--discussion">
         <div class="chat-container">
-          <!-- 讨论区头部改为白色 -->
           <div class="chat-header">
             <h3 style="margin:0;">Discussion Board</h3>
             <button
@@ -297,6 +296,91 @@
         </div>
       </section>
     </div>
+
+    <!-- Milestone Modal -->
+    <div v-if="showMilestoneModal" class="modal-backdrop" @click.self="closeMilestoneModal">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2>{{ milestoneForm.id ? 'Edit Milestone' : 'Create Milestone' }}</h2>
+          <button type="button" class="modal-close" @click="closeMilestoneModal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form class="modal-body" @submit.prevent="submitMilestone">
+          <div class="form-group">
+            <label for="milestone-title">Title *</label>
+            <input
+              id="milestone-title"
+              v-model="milestoneForm.title"
+              type="text"
+              class="form-control"
+              placeholder="Enter milestone title"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="milestone-description">Description</label>
+            <textarea
+              id="milestone-description"
+              v-model="milestoneForm.description"
+              class="form-control"
+              rows="3"
+              placeholder="Optional description"
+            ></textarea>
+          </div>
+
+          <p v-if="milestoneError" class="form-error">{{ milestoneError }}</p>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" @click="closeMilestoneModal" :disabled="creatingMilestone">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="creatingMilestone">
+              <i v-if="creatingMilestone" class="fas fa-spinner fa-spin"></i>
+              <span v-else>{{ milestoneForm.id ? 'Update' : 'Create' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div v-if="showTaskModal" class="modal-backdrop" @click.self="closeTaskModal">
+      <div class="modal-container modal-sm">
+        <div class="modal-header">
+          <h2>Add Task</h2>
+          <button type="button" class="modal-close" @click="closeTaskModal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form class="modal-body" @submit.prevent="submitTask">
+          <div class="form-group">
+            <label for="task-name">Task Name *</label>
+            <input
+              id="task-name"
+              v-model="taskForm.name"
+              type="text"
+              class="form-control"
+              placeholder="Enter task name"
+              required
+            />
+          </div>
+
+          <p v-if="taskError" class="form-error">{{ taskError }}</p>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" @click="closeTaskModal" :disabled="addingTaskFor">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="addingTaskFor">
+              <i v-if="addingTaskFor" class="fas fa-spinner fa-spin"></i>
+              <span v-else>Add Task</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -334,6 +418,23 @@ const membersList = computed(() =>
 )
 const showMembersList = ref(false)
 const memberListRef = ref(null)
+
+// Milestone modal
+const showMilestoneModal = ref(false)
+const milestoneError = ref('')
+const milestoneForm = ref({
+  id: null,
+  title: '',
+  description: ''
+})
+
+// Task modal
+const showTaskModal = ref(false)
+const taskError = ref('')
+const taskForm = ref({
+  milestoneId: null,
+  name: ''
+})
 
 // chat state
 const newMessage = ref('')
@@ -608,43 +709,85 @@ const toggleTask = async (milestone, task) => {
   }
 }
 
-const addTask = async (milestone) => {
-  if (!groupId.value || !milestone) return
-  const name = window.prompt('Enter a task name', 'New Task')
-  if (!name) return
-
-  errorMessage.value = ''
-  addingTaskFor.value = milestone.id
-  try {
-    await groupStore.addTask(groupId.value, milestone.id, name)
-  } catch (error) {
-    errorMessage.value = error?.message || 'Failed to create task'
-    console.error('Failed to create task', error)
-  } finally {
-    addingTaskFor.value = null
+// Milestone modal functions
+const openMilestoneModal = () => {
+  milestoneForm.value = {
+    id: null,
+    title: '',
+    description: ''
   }
+  milestoneError.value = ''
+  showMilestoneModal.value = true
 }
 
-const createMilestone = async () => {
+const closeMilestoneModal = () => {
+  showMilestoneModal.value = false
+  milestoneError.value = ''
+}
+
+const submitMilestone = async () => {
   if (!groupId.value) return
-  const title = window.prompt('Enter a milestone title', 'New Milestone')
-  if (!title) return
-  const descriptionPrompt = window.prompt('Optional description (leave blank to skip)', '')
-  const description = descriptionPrompt == null ? '' : descriptionPrompt
+  const title = milestoneForm.value.title.trim()
+  if (!title) {
+    milestoneError.value = 'Title is required'
+    return
+  }
 
   errorMessage.value = ''
+  milestoneError.value = ''
   creatingMilestone.value = true
+
   try {
     await groupStore.createMilestone(groupId.value, {
       title,
-      description
+      description: milestoneForm.value.description.trim()
     })
     await loadGroup(groupId.value, { force: true })
+    closeMilestoneModal()
   } catch (error) {
-    errorMessage.value = error?.message || 'Failed to create milestone'
+    milestoneError.value = error?.message || 'Failed to create milestone'
     console.error('Failed to create milestone', error)
   } finally {
     creatingMilestone.value = false
+  }
+}
+
+// Task modal functions
+const openTaskModal = (milestone) => {
+  if (!milestone) return
+  taskForm.value = {
+    milestoneId: milestone.id,
+    name: ''
+  }
+  taskError.value = ''
+  showTaskModal.value = true
+}
+
+const closeTaskModal = () => {
+  showTaskModal.value = false
+  taskError.value = ''
+}
+
+const submitTask = async () => {
+  if (!groupId.value || !taskForm.value.milestoneId) return
+  const name = taskForm.value.name.trim()
+  if (!name) {
+    taskError.value = 'Task name is required'
+    return
+  }
+
+  errorMessage.value = ''
+  taskError.value = ''
+  addingTaskFor.value = taskForm.value.milestoneId
+
+  try {
+    await groupStore.addTask(groupId.value, taskForm.value.milestoneId, name)
+    closeTaskModal()
+  } catch (error) {
+    taskError.value = error?.message || 'Failed to create task'
+    console.error('Failed to create task', error)
+  } finally {
+    addingTaskFor.value = null
   }
 }
 
@@ -854,83 +997,99 @@ onBeforeUnmount(() => {
   padding-right: 2px; /* for visible scrollbar */
 }
 
+/* Milestone 样式 - 优化布局 */
 .milestone {
-  border: 1px solid var(--border-light);
+  border: 1.5px solid var(--border-lighter);
   border-radius: var(--radius-lg);
-  padding: 1.1rem 1.25rem;
-  background: var(--white);
-  box-shadow: var(--shadow-sm);
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, var(--white) 0%, var(--bg-lighter) 100%);
+  box-shadow: 0 4px 12px rgba(1, 113, 81, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
+  transition: var(--transition);
+}
+
+.milestone:hover {
+  box-shadow: 0 6px 18px rgba(1, 113, 81, 0.12);
 }
 
 .milestone + .milestone {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
 .milestone-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1.5px solid var(--border-lighter);
 }
 
 .milestone-heading {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.5rem;
 }
 
 .milestone-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
+  gap: 0.65rem;
+  font-weight: 700;
+  font-size: 1.05rem;
   color: var(--charcoal);
 }
 
 .milestone-title i {
   color: var(--dark-green);
+  font-size: 1.1rem;
 }
 
 .milestone-description {
   margin: 0;
   color: #6c757d;
   font-size: 0.9rem;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .milestone-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  flex-shrink: 0;
 }
 
 .milestone-status {
-  padding: 0.25rem 0.65rem;
-  background: rgba(1, 113, 81, 0.1);
+  padding: 0.35rem 0.85rem;
+  background: linear-gradient(135deg, rgba(1, 113, 81, 0.12) 0%, rgba(1, 113, 81, 0.18) 100%);
   color: var(--dark-green);
   border-radius: 999px;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .milestone-delete {
   border: none;
-  background: transparent;
-  color: #d9534f;
+  background: rgba(220, 53, 69, 0.08);
+  color: #dc3545;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.15rem;
-  transition: opacity 0.2s ease;
+  padding: 0.4rem 0.5rem;
+  transition: var(--transition);
   font-size: 1rem;
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
 }
 
 .milestone-delete:hover:not(:disabled) {
-  opacity: 0.75;
+  background: rgba(220, 53, 69, 0.15);
 }
 
 .milestone-delete:disabled {
@@ -938,16 +1097,78 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-/* Add Task 行的微调，保持与全站按钮风格一致 */
-.add-task-row {
-  padding-left: 0.25rem;
-  margin-top: 0.4rem;
+/* Task List 样式 */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  background: var(--white);
+  border: 1.5px solid var(--border-lighter);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.task-item:hover {
+  background: var(--bg-lighter);
+  border-color: var(--dark-green);
+  transform: translateX(4px);
+}
+
+.task-item--loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.task-checkbox {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: var(--transition);
+  background: var(--white);
+}
+
+.task-checkbox.checked {
+  background: linear-gradient(135deg, var(--dark-green) 0%, var(--mint-green) 100%);
+  border-color: var(--dark-green);
+  color: var(--white);
+}
+
+.task-label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--charcoal);
+  font-size: 0.95rem;
+}
+
+.task-label.completed {
+  color: #6c757d;
+  text-decoration: line-through;
+}
+
+.add-task-row {
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px dashed var(--border-lighter);
+}
+
 .add-task-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  border-color: var(--border-light);
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
 /* Discussion board layout & chat styling */
@@ -1277,9 +1498,119 @@ onBeforeUnmount(() => {
   color: #6c757d;
 }
 
-.task-item--loading {
-  opacity: 0.6;
-  pointer-events: none;
+/* Modal styles */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 30, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-container {
+  width: min(540px, 100%);
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(21, 30, 24, 0.25);
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+.modal-container.modal-sm {
+  width: min(420px, 100%);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1.5px solid var(--border-lighter);
+  background: linear-gradient(135deg, var(--bg-lighter) 0%, var(--white) 100%);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--charcoal);
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--charcoal);
+  font-size: 0.95rem;
+}
+
+.form-group .form-control {
+  width: 100%;
+}
+
+.form-error {
+  margin: 0 0 1rem;
+  color: #dc3545;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0 1.5rem 1.5rem;
 }
 
 /* 移动端：单列 + 由 tabs 控制显示哪一块 */
@@ -1322,6 +1653,16 @@ onBeforeUnmount(() => {
   .chat-btn {
     width: 38px;
     height: 38px;
+  }
+
+  .milestone-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .milestone-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

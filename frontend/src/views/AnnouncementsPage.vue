@@ -24,6 +24,10 @@ const formState = ref({
   link: '',
 })
 
+// 详情模态框
+const showDetailModal = ref(false)
+const selectedAnnouncement = ref(null)
+
 const audienceOptions = [
   { value: 'all', label: 'All Users' },
   { value: 'student', label: 'Student' },
@@ -157,6 +161,17 @@ const getAudienceClass = (audience) => {
   }
   return classes[audience] || 'status-active'
 }
+
+// 打开详情模态框
+const openDetail = (announcement) => {
+  selectedAnnouncement.value = announcement
+  showDetailModal.value = true
+}
+
+const closeDetail = () => {
+  showDetailModal.value = false
+  selectedAnnouncement.value = null
+}
 </script>
 
 <template>
@@ -268,31 +283,28 @@ const getAudienceClass = (audience) => {
     </div>
 
     <template v-else>
-      <div class="card" v-for="a in filtered" :key="a.id" style="margin-bottom:1rem;">
-        <div class="card-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-            <h3 class="card-title" style="margin:0;">{{ a.title }}</h3>
+      <div class="announcements-grid">
+        <div
+          v-for="a in filtered"
+          :key="a.id"
+          class="announcement-card"
+          @click="openDetail(a)"
+        >
+          <div class="announcement-header">
+            <h3 class="announcement-title">{{ a.title }}</h3>
             <span class="status-badge" :class="getAudienceClass(a.audience)">
               {{ getAudienceLabel(a.audience) }}
             </span>
           </div>
-        </div>
-        <div style="color:#6c757d;margin:0.25rem 0 1rem;">
-          {{ formatDate(a.createdAt || a.date) }} · {{ a.author || 'Program Team' }}
-        </div>
-        <p style="margin-bottom:1rem;line-height:1.7;">{{ a.summary }}</p>
-
-        <div>
-          <RouterLink v-if="a.route" :to="a.route" class="btn btn-outline btn-sm">Read more</RouterLink>
-          <a
-            v-else-if="a.link"
-            :href="a.link"
-            target="_blank"
-            rel="noopener"
-            class="btn btn-outline btn-sm"
-          >
-            Open link
-          </a>
+          <div class="announcement-meta">
+            {{ formatDate(a.createdAt || a.date) }} · {{ a.author || 'Program Team' }}
+          </div>
+          <p class="announcement-summary">{{ a.summary }}</p>
+          <div class="announcement-footer">
+            <button class="btn btn-outline btn-sm" @click.stop="openDetail(a)">
+              Read more
+            </button>
+          </div>
         </div>
       </div>
 
@@ -300,5 +312,272 @@ const getAudienceClass = (audience) => {
         <p style="margin:0;color:#6c757d;">No announcements found.</p>
       </div>
     </template>
+
+    <!-- 详情模态框 -->
+    <div v-if="showDetailModal" class="modal-backdrop" @click.self="closeDetail">
+      <div class="modal-container">
+        <div class="modal-header">
+          <div class="modal-header-content">
+            <h2>{{ selectedAnnouncement?.title }}</h2>
+            <div class="modal-header-meta">
+              <span class="status-badge" :class="getAudienceClass(selectedAnnouncement?.audience)">
+                {{ getAudienceLabel(selectedAnnouncement?.audience) }}
+              </span>
+              <span class="meta-text">
+                {{ formatDate(selectedAnnouncement?.createdAt || selectedAnnouncement?.date) }} · 
+                {{ selectedAnnouncement?.author || 'Program Team' }}
+              </span>
+            </div>
+          </div>
+          <button type="button" class="modal-close" @click="closeDetail" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div v-if="selectedAnnouncement?.content" class="announcement-content">
+            {{ selectedAnnouncement.content }}
+          </div>
+          <div v-else class="announcement-content">
+            {{ selectedAnnouncement?.summary }}
+          </div>
+
+          <div v-if="selectedAnnouncement?.link" class="announcement-link-section">
+            <a
+              :href="selectedAnnouncement.link"
+              class="btn btn-primary"
+              target="_blank"
+              rel="noopener"
+            >
+              <i class="fas fa-external-link-alt"></i>
+              Open Link
+            </a>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeDetail">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.announcements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.announcement-card {
+  background: var(--white);
+  border: 1.5px solid var(--border-lighter);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.announcement-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--dark-green);
+}
+
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.announcement-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--charcoal);
+  margin: 0;
+  flex: 1;
+  line-height: 1.4;
+}
+
+.announcement-meta {
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.announcement-summary {
+  color: var(--charcoal);
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+}
+
+.announcement-footer {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-lighter);
+}
+
+/* Modal styles */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 30, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-container {
+  width: min(680px, 100%);
+  max-height: 85vh;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(21, 30, 24, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1.5rem 1.75rem;
+  border-bottom: 1.5px solid var(--border-lighter);
+  background: linear-gradient(135deg, var(--bg-lighter) 0%, var(--white) 100%);
+}
+
+.modal-header-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--charcoal);
+  line-height: 1.3;
+}
+
+.modal-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.meta-text {
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--charcoal);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.75rem;
+}
+
+.announcement-content {
+  color: var(--charcoal);
+  line-height: 1.7;
+  font-size: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.announcement-link-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1.5px solid var(--border-lighter);
+  display: flex;
+  justify-content: flex-start;
+}
+
+.announcement-link-section .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.75rem 1.5rem;
+  border-top: 1.5px solid var(--border-lighter);
+  background: linear-gradient(135deg, var(--white) 0%, var(--bg-lighter) 100%);
+}
+
+@media (max-width: 768px) {
+  .announcements-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .modal-close {
+    align-self: flex-end;
+  }
+}
+</style>
