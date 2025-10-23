@@ -1,392 +1,508 @@
 <template>
   <div class="content-area modern-admin" v-if="isAdmin">
     <!-- Header with Track Selector -->
-    <div class="admin-hero">
-      <div class="admin-hero-content">
-        <div>
-          <h1 class="admin-title">Admin Dashboard</h1>
-          <p class="admin-subtitle">Manage users, groups, and platform settings</p>
+    <AnimatedContent
+      :distance="80"
+      direction="vertical"
+      :duration="0.7"
+      ease="power3.out"
+      :initial-opacity="0"
+      :animate-opacity="true"
+    >
+      <div class="admin-hero">
+        <div class="admin-hero-content">
+          <div>
+            <h1 class="admin-title">Admin Dashboard</h1>
+            <p class="admin-subtitle">Manage users, groups, and platform settings</p>
+          </div>
+          <select
+            v-model="activeTrack"
+            class="track-selector"
+            :disabled="statsLoading || usersLoading"
+          >
+            <option v-for="option in trackOptions" :key="option" :value="option">
+              {{ option }}
+            </option>
+          </select>
         </div>
-        <select
-          v-model="activeTrack"
-          class="track-selector"
-          :disabled="statsLoading || usersLoading"
-        >
-          <option v-for="option in trackOptions" :key="option" :value="option">
-            {{ option }}
-          </option>
-        </select>
       </div>
-    </div>
+    </AnimatedContent>
 
     <!-- Stats Cards -->
-    <div class="stats-grid">
-      <div class="stat-card" @click="handleCardClick('all')">
-        <div class="stat-icon users">
-          <i class="fas fa-users"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">Total Users</div>
-          <div class="stat-value">
-            {{ statsLoading ? '—' : totalUsers }}
+    <AnimatedContent
+      :distance="60"
+      direction="vertical"
+      :duration="0.7"
+      ease="power3.out"
+      :initial-opacity="0"
+      :animate-opacity="true"
+      :delay="0.05"
+    >
+      <div class="stats-grid">
+        <div class="stat-card" @click="handleCardClick('all')">
+          <div class="stat-icon users">
+            <i class="fas fa-users"></i>
           </div>
-          <div class="stat-detail">{{ activeTrack }}</div>
+          <div class="stat-content">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value">
+              {{ statsLoading ? '—' : totalUsers }}
+            </div>
+            <div class="stat-detail">{{ activeTrack }}</div>
+          </div>
         </div>
-      </div>
 
-      <div class="stat-card groups-card">
-        <div class="stat-icon groups">
-          <i class="fas fa-layer-group"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">Active Groups</div>
-          <div class="stat-value">
-            {{ statsLoading ? '—' : activeGroups }}
+        <div class="stat-card groups-card">
+          <div class="stat-icon groups">
+            <i class="fas fa-layer-group"></i>
           </div>
-          <div class="stat-detail">Filtered by track</div>
+          <div class="stat-content">
+            <div class="stat-label">Active Groups</div>
+            <div class="stat-value">
+              {{ statsLoading ? '—' : activeGroups }}
+            </div>
+            <div class="stat-detail">Filtered by track</div>
+          </div>
         </div>
-      </div>
 
-      <div class="stat-card" @click="handleCardClick('mentor')">
-        <div class="stat-icon mentors">
-          <i class="fas fa-user-tie"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">Mentors</div>
-          <div class="stat-value">
-            {{ statsLoading ? '—' : mentorTotal }}
+        <div class="stat-card" @click="handleCardClick('mentor')">
+          <div class="stat-icon mentors">
+            <i class="fas fa-user-tie"></i>
           </div>
-          <div class="stat-detail">{{ mentorActive }} active · {{ mentorPending }} pending</div>
+          <div class="stat-content">
+            <div class="stat-label">Mentors</div>
+            <div class="stat-value">
+              {{ statsLoading ? '—' : mentorTotal }}
+            </div>
+            <div class="stat-detail">{{ mentorActive }} active · {{ mentorPending }} pending</div>
+          </div>
         </div>
-      </div>
 
-      <div class="stat-card" @click="handleCardClick('student')">
-        <div class="stat-icon students">
-          <i class="fas fa-graduation-cap"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">Students</div>
-          <div class="stat-value">
-            {{ statsLoading ? '—' : studentTotal }}
+        <div class="stat-card" @click="handleCardClick('student')">
+          <div class="stat-icon students">
+            <i class="fas fa-graduation-cap"></i>
           </div>
-          <div class="stat-detail">{{ studentPending }} pending</div>
+          <div class="stat-content">
+            <div class="stat-label">Students</div>
+            <div class="stat-value">
+              {{ statsLoading ? '—' : studentTotal }}
+            </div>
+            <div class="stat-detail">{{ studentPending }} pending</div>
+          </div>
         </div>
       </div>
-    </div>
+    </AnimatedContent>
 
     <p v-if="statsErrorMessage" class="alert-error">{{ statsErrorMessage }}</p>
 
     <!-- User Management Section -->
-    <div class="management-section">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h2 class="section-title">User Management</h2>
-          <span v-if="users.length" class="section-count">{{ users.length }} users</span>
+    <AnimatedContent
+      :distance="80"
+      direction="vertical"
+      :duration="0.75"
+      ease="power3.out"
+      :initial-opacity="0"
+      :animate-opacity="true"
+      :delay="0.1"
+    >
+      <div class="management-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <h2 class="section-title">User Management</h2>
+            <span v-if="users.length" class="section-count">{{ users.length }} users</span>
+          </div>
+          <div class="section-actions">
+            <input
+              v-model="userSearch"
+              type="text"
+              class="search-input"
+              placeholder="Search users..."
+              :disabled="usersLoading"
+            />
+            <button
+              class="btn btn-outline btn-sm"
+              @click="openFilterModal"
+              :disabled="filterOptionsLoading"
+            >
+              <i class="fas fa-filter"></i> Filter
+            </button>
+            <button
+              class="btn btn-outline btn-sm"
+              @click="exportUsers"
+              :disabled="exporting || usersLoading"
+            >
+              <i class="fas fa-download"></i> Export
+            </button>
+            <button
+              class="btn btn-primary btn-sm"
+              @click="openCreateUser"
+              :disabled="creatingUser"
+            >
+              <i class="fas fa-user-plus"></i> Add User
+            </button>
+          </div>
         </div>
-        <div class="section-actions">
-          <input
-            v-model="userSearch"
-            type="text"
-            class="search-input"
-            placeholder="Search users..."
-            :disabled="usersLoading"
-          />
-          <button 
-            class="btn btn-outline btn-sm" 
-            @click="openFilterModal" 
-            :disabled="filterOptionsLoading"
-          >
-            <i class="fas fa-filter"></i> Filter
-          </button>
-          <button 
-            class="btn btn-outline btn-sm" 
-            @click="exportUsers" 
-            :disabled="exporting || usersLoading"
-          >
-            <i class="fas fa-download"></i> Export
-          </button>
-          <button 
-            class="btn btn-primary btn-sm" 
-            @click="openCreateUser" 
-            :disabled="creatingUser"
-          >
-            <i class="fas fa-user-plus"></i> Add User
-          </button>
-        </div>
-      </div>
 
-      <p v-if="usersErrorMessage" class="alert-error">{{ usersErrorMessage }}</p>
+        <p v-if="usersErrorMessage" class="alert-error">{{ usersErrorMessage }}</p>
 
-      <div class="table-container">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th style="width: 40px;">
-                <input
-                  type="checkbox"
-                  class="checkbox-input"
-                  @change="toggleSelectAll($event)"
-                  :disabled="usersLoading || !users.length"
-                />
-              </th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Track</th>
-              <th>Status</th>
-              <th style="width: 200px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="usersLoading">
-              <td colspan="7" class="loading-cell">
-                <div class="loading-spinner"></div>
-                Loading users...
-              </td>
-            </tr>
-            <template v-else>
-              <tr v-if="!users.length">
-                <td colspan="7" class="empty-cell">No users found</td>
-              </tr>
-              <tr v-else v-for="user in users" :key="user.id" class="table-row-hover">
-                <td>
+        <div class="table-container">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">
                   <input
                     type="checkbox"
                     class="checkbox-input"
-                    v-model="selected"
-                    :value="user.id"
+                    @change="toggleSelectAll($event)"
+                    :disabled="usersLoading || !users.length"
                   />
-                </td>
-                <td class="user-name-cell">
-                  <div class="user-avatar-small">{{ getInitials(user.name) }}</div>
-                  <span>{{ user.name }}</span>
-                </td>
-                <td class="text-muted">{{ user.email }}</td>
-                <td>
-                  <span class="role-badge">{{ user.role }}</span>
-                </td>
-                <td class="text-muted">{{ user.track || '—' }}</td>
-                <td>
-                  <span :class="['status-badge', getStatusClass(user.status)]">
-                    {{ user.status }}
-                  </span>
-                </td>
-                <td>
-                  <div class="action-buttons">
-                    <select
-                      :value="user.status"
-                      class="status-select"
-                      @change="onChangeStatus(user.id, $event.target.value)"
-                      :disabled="Boolean(updatingStatus[user.id])"
-                    >
-                      <option v-for="option in statusOptions" :key="option" :value="option">
-                        {{ capitalize(option) }}
-                      </option>
-                    </select>
-                    <button
-                      class="btn-icon-only"
-                      @click="openEditUser(user.id)"
-                      :disabled="Boolean(savingUser[user.id])"
-                      title="Edit user"
-                    >
-                      <i class="fas fa-edit"></i>
-                    </button>
-                    <button
-                      class="btn-icon-only"
-                      @click="openViewUser(user.id)"
-                      title="View user"
-                    >
-                      <i class="fas fa-eye"></i>
-                    </button>
-                  </div>
+                </th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Track</th>
+                <th>Status</th>
+                <th style="width: 200px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="usersLoading">
+                <td colspan="7" class="loading-cell">
+                  <div class="loading-spinner"></div>
+                  Loading users...
                 </td>
               </tr>
-            </template>
-          </tbody>
-        </table>
+              <template v-else>
+                <tr v-if="!users.length">
+                  <td colspan="7" class="empty-cell">No users found</td>
+                </tr>
+                <tr v-else v-for="user in users" :key="user.id" class="table-row-hover">
+                  <td>
+                    <input
+                      type="checkbox"
+                      class="checkbox-input"
+                      v-model="selected"
+                      :value="user.id"
+                    />
+                  </td>
+                  <td class="user-name-cell">
+                    <div class="user-avatar-small">{{ getInitials(user.name) }}</div>
+                    <span>{{ user.name }}</span>
+                  </td>
+                  <td class="text-muted">{{ user.email }}</td>
+                  <td>
+                    <span class="role-badge">{{ user.role }}</span>
+                  </td>
+                  <td class="text-muted">{{ user.track || '—' }}</td>
+                  <td>
+                    <span :class="['status-badge', getStatusClass(user.status)]">
+                      {{ user.status }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="action-buttons">
+                      <select
+                        :value="user.status"
+                        class="status-select"
+                        @change="onChangeStatus(user.id, $event.target.value)"
+                        :disabled="Boolean(updatingStatus[user.id])"
+                      >
+                        <option v-for="option in statusOptions" :key="option" :value="option">
+                          {{ capitalize(option) }}
+                        </option>
+                      </select>
+                      <button
+                        class="btn-icon-only"
+                        @click="openEditUser(user.id)"
+                        :disabled="Boolean(savingUser[user.id])"
+                        title="Edit user"
+                      >
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button
+                        class="btn-icon-only"
+                        @click="openViewUser(user.id)"
+                        title="View user"
+                      >
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button
+                        class="btn-icon-only"
+                        @click="confirmDeleteUser(user.id)"
+                        :disabled="Boolean(deletingUser[user.id])"
+                        title="Delete user"
+                      >
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </AnimatedContent>
 
     <!-- Group Management Section -->
-    <div class="management-section">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h2 class="section-title">Group Management</h2>
-          <span v-if="groups.length" class="section-count">{{ groups.length }} groups</span>
+    <AnimatedContent
+      :distance="80"
+      direction="vertical"
+      :duration="0.75"
+      ease="power3.out"
+      :initial-opacity="0"
+      :animate-opacity="true"
+      :delay="0.15"
+    >
+      <div class="management-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <h2 class="section-title">Group Management</h2>
+            <span v-if="groups.length" class="section-count">{{ groups.length }} groups</span>
+          </div>
+          <button 
+            class="btn btn-primary btn-sm" 
+            @click="toggleCreateGroup"
+            :disabled="loadingGroupOptions"
+          >
+            <i :class="showCreateGroup ? 'fas fa-times' : 'fas fa-plus'"></i>
+            {{ showCreateGroup ? 'Cancel' : 'Create Group' }}
+          </button>
         </div>
-        <button 
-          class="btn btn-primary btn-sm" 
-          @click="toggleCreateGroup"
-          :disabled="loadingGroupOptions"
-        >
-          <i :class="showCreateGroup ? 'fas fa-times' : 'fas fa-plus'"></i>
-          {{ showCreateGroup ? 'Cancel' : 'Create Group' }}
-        </button>
-      </div>
-
-      <!-- Create Group Form -->
-      <div v-if="showCreateGroup" class="create-group-panel">
-        <h3 class="panel-title">Create New Group</h3>
-        <form @submit.prevent="createGroup" class="group-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Group Code (optional)</label>
-              <input
-                v-model="groupForm.groupId"
-                type="text"
-                class="form-control"
-                :disabled="creatingGroup"
-                placeholder="e.g. BTF046"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Group Name *</label>
-              <input
-                v-model="groupForm.name"
-                type="text"
-                class="form-control"
-                :disabled="creatingGroup"
-                placeholder="Team name"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Track</label>
-              <input
-                v-model="groupForm.track"
-                type="text"
-                class="form-control"
-                :disabled="creatingGroup"
-              />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group" style="flex: 1;">
-              <label class="form-label">Mentor</label>
-              <select
-                v-model="groupForm.mentorId"
-                class="form-control"
-                :disabled="creatingGroup || loadingGroupOptions"
-              >
-                <option value="">No mentor</option>
-                <option v-for="mentor in availableMentors" :key="mentor.id" :value="String(mentor.id)">
-                  {{ mentor.name }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Select Students *</label>
-            <p class="form-text" style="margin-bottom: 0.75rem;">
-              Click to select multiple students for this group
-            </p>
-            <div class="members-selection">
-              <div
-                v-for="member in availableMembers"
-                :key="member.id"
-                class="member-chip"
-                :class="{ selected: isSelected(member.id) }"
-                @click="toggleMember(member.id)"
-              >
-                <div class="member-chip-avatar">{{ getInitials(member.name) }}</div>
-                <div class="member-chip-name">{{ member.name }}</div>
-                <div class="member-chip-check">
-                  <i class="fas fa-check"></i>
-                </div>
+  
+        <!-- Create Group Form -->
+        <div v-if="showCreateGroup" class="create-group-panel">
+          <h3 class="panel-title">Create New Group</h3>
+          <form @submit.prevent="createGroup" class="group-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Group Code (optional)</label>
+                <input
+                  v-model="groupForm.groupId"
+                  type="text"
+                  class="form-control"
+                  :disabled="creatingGroup"
+                  placeholder="e.g. BTF046"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Group Name *</label>
+                <input
+                  v-model="groupForm.name"
+                  type="text"
+                  class="form-control"
+                  :disabled="creatingGroup"
+                  placeholder="Team name"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Track</label>
+                <input
+                  v-model="groupForm.track"
+                  type="text"
+                  class="form-control"
+                  :disabled="creatingGroup"
+                />
               </div>
             </div>
-          </div>
-
-          <div class="form-actions">
-            <button
-              type="button"
-              class="btn btn-outline"
-              @click="toggleCreateGroup"
-              :disabled="creatingGroup"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="creatingGroup || loadingGroupOptions || !groupForm.name.trim() || groupForm.memberIds.length === 0"
-            >
-              <i v-if="creatingGroup" class="fas fa-spinner fa-spin"></i>
-              <span v-else>Create Group</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <p v-if="groupsError" class="alert-error">{{ groupsError }}</p>
-
-      <div class="table-container">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Mentor</th>
-              <th>Members</th>
-              <th>Track</th>
-              <th>Status</th>
-              <th style="width: 120px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="groupsLoading">
-              <td colspan="7" class="loading-cell">
-                <div class="loading-spinner"></div>
-                Loading groups...
-              </td>
-            </tr>
-            <template v-else>
-              <tr v-if="!groups.length">
-                <td colspan="7" class="empty-cell">No groups found for this track</td>
-              </tr>
-              <tr v-else v-for="group in groups" :key="group.id" class="table-row-hover">
-                <td class="text-muted">{{ group.id }}</td>
-                <td class="group-name-cell">
-                  <div class="group-icon">
-                    <i class="fas fa-users"></i>
-                  </div>
-                  <span>{{ group.name }}</span>
-                </td>
-                <td>{{ group.mentor?.name || '—' }}</td>
-                <td class="text-muted">{{ group.members ?? 0 }}</td>
-                <td class="text-muted">{{ group.track || '—' }}</td>
-                <td>
-                  <span class="status-badge status-active">
-                    {{ group.status || 'Active' }}
-                  </span>
-                </td>
-                <td>
-                  <div class="action-buttons">
-                    <button
-                      class="btn-icon-only"
-                      @click="viewGroup(group.id)"
-                      title="View group"
+  
+            <div class="form-row">
+              <div class="form-group" style="flex: 1;">
+                <label class="form-label">Mentor</label>
+                <select
+                  v-model="groupForm.mentorId"
+                  class="form-control"
+                  :disabled="creatingGroup || loadingGroupOptions"
+                >
+                  <option value="">No mentor</option>
+                  <option v-for="mentor in availableMentors" :key="mentor.id" :value="String(mentor.id)">
+                    {{ mentor.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+  
+            <div class="form-group">
+              <label class="form-label">Select Students *</label>
+              <p class="form-text" style="margin-bottom: 0.75rem;">
+                Choose one or more students to include in this group
+              </p>
+              <div
+                class="member-multiselect"
+                ref="memberDropdownRef"
+                :class="{ open: membersDropdownOpen }"
+              >
+                <div
+                  class="member-multiselect-control"
+                  role="button"
+                  tabindex="0"
+                  @click="toggleMembersDropdown"
+                  @keydown.enter.prevent="toggleMembersDropdown"
+                  @keydown.space.prevent="toggleMembersDropdown"
+                >
+                  <div class="member-selected-list">
+                    <span v-if="!selectedMembers.length" class="member-placeholder">
+                      Click to select students
+                    </span>
+                    <div
+                      v-for="member in selectedMembers"
+                      :key="member.id"
+                      class="member-selected-chip"
                     >
-                      <i class="fas fa-eye"></i>
-                    </button>
-                    <button
-                      class="btn-icon-only danger"
-                      @click="deleteGroup(group.id)"
-                      :disabled="Boolean(deletingGroups[group.id])"
-                      title="Delete group"
-                    >
-                      <i :class="deletingGroups[group.id] ? 'fas fa-spinner fa-spin' : 'fas fa-trash'"></i>
-                    </button>
+                      <span>{{ member.name }}</span>
+                      <button
+                        type="button"
+                        class="chip-remove-btn"
+                        aria-label="Remove student"
+                        @click.stop="removeMember(member.id)"
+                      >
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
                   </div>
+                  <i class="fas" :class="membersDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </div>
+  
+                <transition name="fade">
+                  <div
+                    v-if="membersDropdownOpen"
+                    class="member-dropdown-panel"
+                  >
+                    <div class="member-dropdown-header">
+                      <input
+                        v-model="memberSearch"
+                        type="text"
+                        class="dropdown-search-input"
+                        placeholder="Search students..."
+                        :disabled="loadingGroupOptions"
+                      />
+                      <button
+                        type="button"
+                        class="clear-selection-btn"
+                        @click.stop="clearMembers"
+                        :disabled="!groupForm.memberIds.length"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div class="member-dropdown-body">
+                      <template v-if="loadingGroupOptions && !availableMembers.length">
+                        <p class="member-empty">Loading students…</p>
+                      </template>
+                      <template v-else>
+                        <label
+                          v-for="member in filteredMembers"
+                          :key="member.id"
+                          class="member-dropdown-option"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="member.id"
+                            :checked="isSelected(member.id)"
+                            @change.stop="toggleMember(member.id)"
+                          />
+                          <span>{{ member.name }}</span>
+                        </label>
+                        <p v-if="!filteredMembers.length" class="member-empty">
+                          No students match your search.
+                        </p>
+                      </template>
+                    </div>
+                  </div>
+                </transition>
+              </div>
+            </div>
+  
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                @click="toggleCreateGroup"
+                :disabled="creatingGroup"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="creatingGroup || loadingGroupOptions || !groupForm.name.trim() || groupForm.memberIds.length === 0"
+              >
+                <i v-if="creatingGroup" class="fas fa-spinner fa-spin"></i>
+                <span v-else>Create Group</span>
+              </button>
+            </div>
+          </form>
+        </div>
+  
+        <p v-if="groupsError" class="alert-error">{{ groupsError }}</p>
+  
+        <div class="table-container">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Mentor</th>
+                <th>Members</th>
+                <th>Track</th>
+                <th>Status</th>
+                <th style="width: 120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="groupsLoading">
+                <td colspan="7" class="loading-cell">
+                  <div class="loading-spinner"></div>
+                  Loading groups...
                 </td>
               </tr>
-            </template>
-          </tbody>
-        </table>
+              <template v-else>
+                <tr v-if="!groups.length">
+                  <td colspan="7" class="empty-cell">No groups found for this track</td>
+                </tr>
+                <tr v-else v-for="group in groups" :key="group.id" class="table-row-hover">
+                  <td class="text-muted">{{ group.id }}</td>
+                  <td class="group-name-cell">
+                    <div class="group-icon">
+                      <i class="fas fa-users"></i>
+                    </div>
+                    <span>{{ group.name }}</span>
+                  </td>
+                  <td>{{ group.mentor?.name || '—' }}</td>
+                  <td class="text-muted">{{ group.members ?? 0 }}</td>
+                  <td class="text-muted">{{ group.track || '—' }}</td>
+                  <td>
+                    <span class="status-badge status-active">
+                      {{ group.status || 'Active' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="action-buttons">
+                      <button
+                        class="btn-icon-only"
+                        @click="viewGroup(group.id)"
+                        title="View group"
+                      >
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button
+                        class="btn-icon-only danger"
+                        @click="deleteGroup(group.id)"
+                        :disabled="Boolean(deletingGroups[group.id])"
+                        title="Delete group"
+                      >
+                        <i :class="deletingGroups[group.id] ? 'fas fa-spinner fa-spin' : 'fas fa-trash'"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </AnimatedContent>
 
     <!-- User Modal (Edit/View/Create) -->
     <div v-if="showUserModal" class="modal-overlay" @click.self="closeUserModal">
@@ -616,16 +732,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAdminStore } from '@/stores/admin'
 import { useAuthStore } from '@/stores/auth'
+import { useGroupStore } from '@/stores/groups'
+import AnimatedContent from '@/components/AnimatedContent.vue'
 import { safeJson } from '@/utils/http'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const adminStore = useAdminStore()
+const groupStoreGlobal = useGroupStore()
 
 const {
   stats,
@@ -698,6 +817,28 @@ const groupForm = reactive({
   track: activeTrack.value || 'Global',
   mentorId: '',
   memberIds: []
+})
+const membersDropdownOpen = ref(false)
+const memberDropdownRef = ref(null)
+const memberSearch = ref('')
+
+const selectedMembers = computed(() => {
+  const lookup = new Map(
+    availableMembers.value.map((member) => [String(member.id), member])
+  )
+  return groupForm.memberIds
+    .map((id) => lookup.get(String(id)))
+    .filter(Boolean)
+})
+
+const filteredMembers = computed(() => {
+  const term = memberSearch.value.trim().toLowerCase()
+  if (!term) return availableMembers.value
+  return availableMembers.value.filter((member) =>
+    String(member.name || '')
+      .toLowerCase()
+      .includes(term)
+  )
 })
 
 const statusOptions = computed(() => filterOptions.value.statuses || ['active', 'pending', 'inactive'])
@@ -804,6 +945,9 @@ watch(activeTrack, (track, previous) => {
     userForm.track = track
   }
   groupForm.track = track || 'Global'
+  groupForm.memberIds = []
+  memberSearch.value = ''
+  membersDropdownOpen.value = false
   
   // Reload groups when track changes
   groupsLoaded.value = false
@@ -834,6 +978,11 @@ onMounted(() => {
   // Load groups data immediately
   fetchGroups().catch(() => {})
   loadGroupOptions().catch(() => {})
+  document.addEventListener('click', handleMembersClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleMembersClickOutside)
 })
 
 // User management functions
@@ -1116,6 +1265,7 @@ const exportUsers = async () => {
 // Group management functions
 const toggleCreateGroup = () => {
   showCreateGroup.value = !showCreateGroup.value
+  membersDropdownOpen.value = false
   if (showCreateGroup.value) {
     resetGroupForm()
     if (!groupOptionsLoaded.value) {
@@ -1130,6 +1280,8 @@ const resetGroupForm = () => {
   groupForm.track = activeTrack.value || 'Global'
   groupForm.mentorId = ''
   groupForm.memberIds = []
+  memberSearch.value = ''
+  membersDropdownOpen.value = false
 }
 
 const isSelected = (memberId) => {
@@ -1143,6 +1295,40 @@ const toggleMember = (memberId) => {
     groupForm.memberIds.splice(index, 1)
   } else {
     groupForm.memberIds.push(id)
+  }
+}
+
+const removeMember = (memberId) => {
+  const id = String(memberId)
+  const index = groupForm.memberIds.indexOf(id)
+  if (index > -1) {
+    groupForm.memberIds.splice(index, 1)
+  }
+}
+
+const clearMembers = () => {
+  groupForm.memberIds = []
+  memberSearch.value = ''
+}
+
+const toggleMembersDropdown = async () => {
+  if (!membersDropdownOpen.value && !groupOptionsLoaded.value) {
+    await loadGroupOptions(true).catch(() => {})
+  }
+  membersDropdownOpen.value = !membersDropdownOpen.value
+  if (membersDropdownOpen.value) {
+    await nextTick()
+    const input = memberDropdownRef.value?.querySelector('.dropdown-search-input')
+    input?.focus()
+  }
+}
+
+const handleMembersClickOutside = (event) => {
+  if (!membersDropdownOpen.value) return
+  const root = memberDropdownRef.value
+  if (!root) return
+  if (!root.contains(event.target)) {
+    membersDropdownOpen.value = false
   }
 }
 
@@ -1279,6 +1465,8 @@ const createGroup = async () => {
 
     await fetchGroups(true)
     await adminStore.fetchStats({ track: activeTrack.value })
+    groupStoreGlobal.fetchAllGroups({ forceRefresh: true }).catch(() => {})
+    groupStoreGlobal.fetchMyGroups({ forceRefresh: true }).catch(() => {})
     resetGroupForm()
     showCreateGroup.value = false
     window.alert('Group created successfully')
@@ -1312,6 +1500,8 @@ const deleteGroup = async (groupId) => {
 
     await adminStore.fetchStats({ track: activeTrack.value })
     await fetchGroups(true)
+    groupStoreGlobal.fetchAllGroups({ forceRefresh: true }).catch(() => {})
+    groupStoreGlobal.fetchMyGroups({ forceRefresh: true }).catch(() => {})
   } catch (error) {
     window.alert(error?.message || 'Failed to delete group')
   } finally {
@@ -1384,9 +1574,10 @@ const deleteGroup = async (groupId) => {
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
+  align-items: stretch;
 }
 
 .stat-card {
@@ -1414,6 +1605,18 @@ const deleteGroup = async (groupId) => {
 
 .stat-card.groups-card:hover {
   transform: translateY(-2px);
+}
+
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-icon {
@@ -1753,84 +1956,185 @@ const deleteGroup = async (groupId) => {
   color: #6c757d;
 }
 
-.members-selection {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.875rem;
-  max-height: 400px;
-  overflow-y: auto;
-  padding: 1rem;
-  background: var(--white);
+.member-multiselect {
+  position: relative;
   border-radius: var(--radius);
   border: 1.5px solid var(--border-lighter);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
 }
 
-.member-chip {
+.member-multiselect.open {
+  border-color: rgba(1, 113, 81, 0.35);
+  box-shadow: var(--shadow);
+}
+
+.member-multiselect-control {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+}
+
+.member-multiselect-control i {
+  color: #6c757d;
+  transition: var(--transition);
+}
+
+.member-selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.member-placeholder {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.member-selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(1, 113, 81, 0.12) 0%, rgba(1, 113, 81, 0.18) 100%);
+  color: var(--dark-green);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid rgba(1, 113, 81, 0.18);
+}
+
+.chip-remove-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+}
+
+.member-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border-lighter);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.member-dropdown-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  background: var(--white);
-  border: 2px solid var(--border-light);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-lighter);
+  background: var(--bg-lighter);
+}
+
+.dropdown-search-input {
+  flex: 1;
+  border: 1.5px solid var(--border-light);
   border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  transition: var(--transition);
+}
+
+.dropdown-search-input:focus {
+  outline: none;
+  border-color: var(--dark-green);
+  box-shadow: 0 0 0 2px rgba(1, 113, 81, 0.15);
+}
+
+.clear-selection-btn {
+  border: none;
+  background: transparent;
+  color: var(--dark-green);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+
+.clear-selection-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.clear-selection-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.member-dropdown-body {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.5rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.member-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.25rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: var(--transition);
-  position: relative;
 }
 
-.member-chip:hover {
-  border-color: var(--dark-green);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.member-chip.selected {
-  border-color: var(--dark-green);
-  background: linear-gradient(135deg, rgba(1, 113, 81, 0.08) 0%, rgba(1, 113, 81, 0.12) 100%);
-}
-
-.member-chip-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--mint-green) 0%, var(--eucalypt) 100%);
-  color: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.member-chip.selected .member-chip-avatar {
-  background: linear-gradient(135deg, var(--dark-green) 0%, #018a63 100%);
-}
-
-.member-chip-name {
+.member-dropdown-option span {
   flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.member-dropdown-option:hover {
+  background: rgba(1, 113, 81, 0.06);
+}
+
+.member-dropdown-option input {
+  width: 18px;
+  height: 18px;
+}
+
+.member-empty {
+  padding: 0.75rem 0;
+  text-align: center;
+  color: #6c757d;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--charcoal);
 }
 
-.member-chip-check {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--white);
-  border: 2px solid var(--border-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--white);
-  font-size: 0.75rem;
-  transition: var(--transition);
-}
+@media (max-width: 640px) {
+  .member-multiselect-control {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 
-.member-chip.selected .member-chip-check {
-  background: linear-gradient(135deg, var(--dark-green) 0%, #018a63 100%);
-  border-color: var(--dark-green);
+  .member-multiselect-control i {
+    align-self: flex-end;
+  }
+
+  .member-selected-list {
+    width: 100%;
+  }
 }
 
 .form-actions {
@@ -2018,10 +2322,6 @@ const deleteGroup = async (groupId) => {
     width: 100%;
   }
 
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  }
-
   .section-header {
     flex-direction: column;
     align-items: stretch;
@@ -2040,10 +2340,6 @@ const deleteGroup = async (groupId) => {
   .modern-table th,
   .modern-table td {
     padding: 0.875rem 1rem;
-  }
-
-  .members-selection {
-    grid-template-columns: 1fr;
   }
 }
 

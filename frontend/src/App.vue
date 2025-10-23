@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import logo from '@/assets/btf-logo.png'
+import AnimatedContent from './components/AnimatedContent.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,10 @@ const toggleNotifications = () => {
 const go = (path) => {
   showNotifications.value = false
   router.push(path)
+}
+
+const handleAnimationComplete = () => {
+  console.log('Animation completed!')
 }
 </script>
 
@@ -118,11 +123,47 @@ const go = (path) => {
       </aside>
 
       <!-- 内容区 -->
-      <RouterView />
+      <RouterView v-slot="{ Component, route: activeRoute }">
+        <AnimatedContent
+          v-if="Component"
+          :key="activeRoute.fullPath"
+          :distance="100"
+          direction="vertical"
+          :reverse="false"
+          :duration="0.8"
+          ease="power3.out"
+          :initial-opacity="0"
+          :animate-opacity="true"
+          :scale="1"
+          :threshold="0.1"
+          :delay="0"
+          @complete="handleAnimationComplete"
+        >
+          <component :is="Component" />
+        </AnimatedContent>
+      </RouterView>
     </div>
 
     <!-- 登录页（全屏） -->
-    <RouterView v-else />
+    <RouterView v-else v-slot="{ Component, route: loginRoute }">
+      <AnimatedContent
+        v-if="Component"
+        :key="loginRoute.fullPath"
+        :distance="100"
+        direction="vertical"
+        :reverse="false"
+        :duration="0.8"
+        ease="power3.out"
+        :initial-opacity="0"
+        :animate-opacity="true"
+        :scale="1"
+        :threshold="0.1"
+        :delay="0"
+        @complete="handleAnimationComplete"
+      >
+        <component :is="Component" />
+      </AnimatedContent>
+    </RouterView>
 
     <!-- Notification Panel（仅保留两个菜单项） -->
     <div :class="['notification-panel', { show: showNotifications }]" v-if="!isLoginPage">

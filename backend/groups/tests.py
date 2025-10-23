@@ -126,3 +126,31 @@ class GroupAPITestCase(APITestCase):
         self.task.refresh_from_db()
         self.assertTrue(self.task.completed)
         self.assertTrue(response.data["task"]["completed"])
+
+    def test_create_milestone(self):
+        url = reverse("groups:group-create-milestone", kwargs={"pk": self.group.id})
+        response = self.client.post(
+            url,
+            {"title": "Prototype", "description": "Build initial prototype"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["title"], "Prototype")
+        self.assertEqual(response.data["description"], "Build initial prototype")
+        self.assertTrue(
+            Milestone.objects.filter(group=self.group, title="Prototype").exists()
+        )
+
+    def test_delete_milestone(self):
+        milestone = Milestone.objects.create(group=self.group, title="To Remove")
+        url = reverse(
+            "groups:group-delete-milestone",
+            kwargs={"pk": self.group.id, "milestone_id": milestone.id},
+        )
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            Milestone.objects.filter(group=self.group, title="To Remove").exists()
+        )

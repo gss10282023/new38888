@@ -25,7 +25,16 @@ const activeGroupCount = computed(() =>
 )
 const resourceStore = useResourceStore()
 const { items: resourceItems, loadingList: loadingResources } = storeToRefs(resourceStore)
-const resourcePreview = computed(() => (resourceItems.value || []).slice(0, 6))
+const resourcePreview = computed(() => {
+  const list = Array.isArray(resourceItems.value) ? resourceItems.value : []
+  if (effectiveIsAdmin.value) {
+    return list.slice(0, 6)
+  }
+  const role = auth.user?.role || ''
+  return list
+    .filter((resource) => resource.role === 'all' || resource.role === role)
+    .slice(0, 6)
+})
 const eventStore = useEventStore()
 const { items: eventItems, loadingList: loadingEvents } = storeToRefs(eventStore)
 const upcomingEvents = computed(() => eventItems.value || [])
@@ -42,6 +51,12 @@ const getCurrentDate = () =>
     month: 'long',
     day: 'numeric'
   })
+
+const formattedRole = computed(() => {
+  const role = user.value?.role
+  if (!role) return '—'
+  return role.charAt(0).toUpperCase() + role.slice(1)
+})
 
 const getResourceIcon = (type) => {
   const icons = {
@@ -138,6 +153,27 @@ watch(
 )
 
 watch(
+  () => auth.user?.id,
+  (currentId, previousId) => {
+    if (currentId && currentId !== previousId) {
+      loadGroups(true)
+      loadResources(true)
+      loadEvents(true)
+      loadAnnouncements(true)
+    }
+  }
+)
+
+watch(
+  () => auth.user?.role,
+  (currentRole, previousRole) => {
+    if (currentRole && currentRole !== previousRole) {
+      loadResources(true)
+    }
+  }
+)
+
+watch(
   () => effectiveIsAdmin.value,
   (isAdminNow, wasAdmin) => {
     if (isAdminNow && !wasAdmin) {
@@ -155,7 +191,7 @@ watch(
     <div style="margin-bottom: 2rem;">
       <h1>Welcome back, {{ user?.name || 'User' }}!</h1>
       <p style="color:#6c757d;">
-        {{ getCurrentDate() }} - Track: {{ user?.track || '—' }}
+        {{ getCurrentDate() }} - Track: {{ user?.track || '—' }} · Role: {{ formattedRole }}
       </p>
     </div>
 

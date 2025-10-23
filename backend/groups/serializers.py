@@ -115,6 +115,8 @@ class MilestoneSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "description",
+            "order_index",
             "tasks",
         ]
 
@@ -192,3 +194,8 @@ class GroupCreateSerializer(serializers.Serializer):
             )
 
         return normalised
+
+
+class MilestoneCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True)

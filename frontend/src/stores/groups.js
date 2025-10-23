@@ -215,7 +215,7 @@ export const useGroupStore = defineStore('groups', {
 
       const auth = useAuthStore()
       const response = await auth.authenticatedFetch(
-        `/groups/${groupId}/milestones/${milestoneId}/tasks`,
+        `/groups/${groupId}/milestones/${milestoneId}/tasks/`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -240,6 +240,66 @@ export const useGroupStore = defineStore('groups', {
       }
 
       return data
+    },
+
+    async createMilestone(groupId, { title, description = '' } = {}) {
+      if (!groupId) return null
+      const trimmed = String(title || '').trim()
+      if (!trimmed) {
+        throw new Error('Milestone title cannot be empty')
+      }
+
+      const auth = useAuthStore()
+      const response = await auth.authenticatedFetch(
+        `/groups/${groupId}/milestones/`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: trimmed, description })
+        }
+      )
+
+      const data = await safeJson(response)
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to create milestone')
+      }
+
+      const group = this.groupsById[groupId]
+      if (group) {
+        if (!Array.isArray(group.milestones)) group.milestones = []
+        group.milestones.push({
+          id: data.id,
+          title: data.title,
+          description: data.description || '',
+          order_index: data.order_index ?? group.milestones.length,
+          tasks: Array.isArray(data.tasks) ? data.tasks : []
+        })
+      }
+
+      return data
+    },
+
+    async deleteMilestone(groupId, milestoneId) {
+      if (!groupId || !milestoneId) return false
+      const auth = useAuthStore()
+      const response = await auth.authenticatedFetch(
+        `/groups/${groupId}/milestones/${milestoneId}/`,
+        { method: 'DELETE' }
+      )
+
+      if (!response.ok && response.status !== 204) {
+        const data = await safeJson(response)
+        throw new Error(data?.error || 'Failed to delete milestone')
+      }
+
+      const group = this.groupsById[groupId]
+      if (group?.milestones) {
+        group.milestones = group.milestones.filter(
+          (milestone) => String(milestone.id) !== String(milestoneId)
+        )
+      }
+
+      return true
     }
   }
 })

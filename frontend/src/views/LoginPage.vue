@@ -313,6 +313,38 @@ onMounted(async () => {
   margin-bottom: 1.25rem;
 }
 
+.otp-section {
+  margin-top: 2rem;
+}
+
+.otp-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.otp-input {
+  width: 100%;
+  max-width: 56px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.5rem;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius);
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.otp-input:focus {
+  outline: none;
+  border-color: var(--dark-green);
+  box-shadow: 0 0 0 4px rgba(1, 113, 81, 0.12);
+}
+
+.otp-input:not(:focus) {
+  background: var(--bg-lighter);
+}
+
 /* 让“Resend Code”看起来像链接但本质是按钮，避免 hash 跳转 */
 .linklike {
   background: none;
@@ -334,6 +366,14 @@ onMounted(async () => {
   }
   .left-pane, .right-pane {
     padding: 2rem 1.25rem;
+  }
+  .otp-container {
+    gap: 0.5rem;
+  }
+  .otp-input {
+    max-width: 48px;
+    height: 50px;
+    font-size: 1.35rem;
   }
 }
 </style>

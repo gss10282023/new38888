@@ -15,19 +15,22 @@
       </div>
     </div>
 
-    <div v-if="!isAdmin" class="alert-warning">
-      Only administrators can view the full group list.
-    </div>
-
-    <div v-else class="card">
+    <div class="card">
       <div class="card-header">
-        <h3 class="card-title">All Active Groups</h3>
+        <h3 class="card-title">
+          {{ isAdmin ? 'All Active Groups' : 'My Active Groups' }}
+        </h3>
         <span v-if="groups.length" class="muted">{{ groups.length }} total</span>
       </div>
       <div class="card-content">
         <div v-if="loading" class="empty-state">Loading groups…</div>
         <div v-else-if="errorMessage" class="alert-error">{{ errorMessage }}</div>
-        <div v-else-if="!groups.length" class="empty-state">No groups found.</div>
+        <div
+          v-else-if="!groups.length"
+          class="empty-state"
+        >
+          {{ isAdmin ? 'No groups found.' : 'You are not assigned to any groups yet.' }}
+        </div>
         <div v-else class="groups-table-wrapper">
           <table class="groups-table">
             <thead>
@@ -74,17 +77,34 @@ const router = useRouter()
 const groupStore = useGroupStore()
 const authStore = useAuthStore()
 
-const { allGroups, loadingAllGroups, errorAllGroups } = storeToRefs(groupStore)
+const {
+  allGroups,
+  loadingAllGroups,
+  errorAllGroups,
+  myGroups,
+  loadingMyGroups,
+  errorMyGroups
+} = storeToRefs(groupStore)
 const { isAdmin } = storeToRefs(authStore)
 
-const loading = computed(() => loadingAllGroups.value)
-const errorMessage = computed(() => errorAllGroups.value?.message || '')
-const groups = computed(() => allGroups.value || [])
+const loading = computed(() =>
+  isAdmin.value ? loadingAllGroups.value : loadingMyGroups.value
+)
+const errorMessage = computed(() => {
+  const error = isAdmin.value ? errorAllGroups.value : errorMyGroups.value
+  return error?.message || ''
+})
+const groups = computed(() =>
+  (isAdmin.value ? allGroups.value : myGroups.value) || []
+)
 
 const loadGroups = async (force = false) => {
-  if (!isAdmin.value) return
   try {
-    await groupStore.fetchAllGroups({ forceRefresh: force })
+    if (isAdmin.value) {
+      await groupStore.fetchAllGroups({ forceRefresh: force })
+    } else {
+      await groupStore.fetchMyGroups({ forceRefresh: force })
+    }
   } catch (error) {
     console.error('Failed to load groups', error)
   }

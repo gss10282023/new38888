@@ -76,8 +76,18 @@
       <section class="pane pane--plan card">
         <div class="card-header">
           <h3 class="card-title">Plan</h3>
-          <button type="button" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus"></i> Add Milestone
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            :disabled="creatingMilestone"
+            @click="createMilestone"
+          >
+            <i
+              class="fas"
+              :class="creatingMilestone ? 'fa-spinner fa-spin' : 'fa-plus'"
+            ></i>
+            <span v-if="creatingMilestone"> Creating…</span>
+            <span v-else> Add Milestone</span>
           </button>
         </div>
         <div class="card-content plan-content">
@@ -90,12 +100,31 @@
               class="milestone"
             >
               <div class="milestone-header">
-                <div class="milestone-title">
-                  <i class="fas fa-flag"></i>
-                  {{ m.title }}
+                <div class="milestone-heading">
+                  <div class="milestone-title">
+                    <i class="fas fa-flag"></i>
+                    {{ m.title }}
+                  </div>
+                  <p v-if="m.description" class="milestone-description">
+                    {{ m.description }}
+                  </p>
                 </div>
-                <div class="milestone-status">
-                  {{ countCompleted(m) }}/{{ (m.tasks || []).length }} Completed
+                <div class="milestone-actions">
+                  <div class="milestone-status">
+                    {{ countCompleted(m) }}/{{ (m.tasks || []).length }} Completed
+                  </div>
+                  <button
+                    type="button"
+                    class="milestone-delete"
+                    title="Delete milestone"
+                    :disabled="removingMilestoneId === m.id"
+                    @click.stop="deleteMilestone(m)"
+                  >
+                    <i
+                      class="fas"
+                      :class="removingMilestoneId === m.id ? 'fa-spinner fa-spin' : 'fa-trash'"
+                    ></i>
+                  </button>
                 </div>
               </div>
 
@@ -237,9 +266,10 @@
                   @change="handleAttachmentSelection"
                 />
                 <button
-                  class="chat-btn"
+                  class="chat-btn chat-btn--secondary"
                   type="button"
                   title="Attach file"
+                  aria-label="Attach file"
                   :disabled="isSending || isUploadingAttachment"
                   @click="triggerAttachment"
                 >
@@ -249,10 +279,11 @@
                   ></i>
                 </button>
                 <button
-                  class="chat-btn"
+                  class="chat-btn chat-btn--primary"
                   type="button"
                   @click="sendMessage"
                   title="Send"
+                  aria-label="Send message"
                   :disabled="disableSendButton || isSending || isUploadingAttachment"
                 >
                   <i
@@ -290,6 +321,8 @@ const loading = ref(false)
 const errorMessage = ref('')
 const togglingTaskId = ref(null)
 const addingTaskFor = ref(null)
+const creatingMilestone = ref(false)
+const removingMilestoneId = ref(null)
 
 const milestones = computed(() => group.value?.milestones || [])
 const memberCount = computed(() =>
@@ -592,6 +625,47 @@ const addTask = async (milestone) => {
   }
 }
 
+const createMilestone = async () => {
+  if (!groupId.value) return
+  const title = window.prompt('Enter a milestone title', 'New Milestone')
+  if (!title) return
+  const descriptionPrompt = window.prompt('Optional description (leave blank to skip)', '')
+  const description = descriptionPrompt == null ? '' : descriptionPrompt
+
+  errorMessage.value = ''
+  creatingMilestone.value = true
+  try {
+    await groupStore.createMilestone(groupId.value, {
+      title,
+      description
+    })
+    await loadGroup(groupId.value, { force: true })
+  } catch (error) {
+    errorMessage.value = error?.message || 'Failed to create milestone'
+    console.error('Failed to create milestone', error)
+  } finally {
+    creatingMilestone.value = false
+  }
+}
+
+const deleteMilestone = async (milestone) => {
+  if (!groupId.value || !milestone) return
+  const confirmed = window.confirm(`Delete milestone "${milestone.title}"? This cannot be undone.`)
+  if (!confirmed) return
+
+  errorMessage.value = ''
+  removingMilestoneId.value = milestone.id
+  try {
+    await groupStore.deleteMilestone(groupId.value, milestone.id)
+    await loadGroup(groupId.value, { force: true })
+  } catch (error) {
+    errorMessage.value = error?.message || 'Failed to delete milestone'
+    console.error('Failed to delete milestone', error)
+  } finally {
+    removingMilestoneId.value = null
+  }
+}
+
 const toggleMembersList = () => {
   if (!membersList.value.length) return
   showMembersList.value = !showMembersList.value
@@ -780,19 +854,88 @@ onBeforeUnmount(() => {
   padding-right: 2px; /* for visible scrollbar */
 }
 
-/* Discussion board: chat-container fills card, chat-messages scrolls */
-.pane--discussion .chat-container {
+.milestone {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
-  height: 100%;
-  min-height: 0;
+  gap: 0.85rem;
 }
 
-.pane--discussion .chat-messages {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
+.milestone + .milestone {
+  margin-top: 1rem;
+}
+
+.milestone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.milestone-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.milestone-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.milestone-title i {
+  color: var(--dark-green);
+}
+
+.milestone-description {
+  margin: 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.milestone-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.milestone-status {
+  padding: 0.25rem 0.65rem;
+  background: rgba(1, 113, 81, 0.1);
+  color: var(--dark-green);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.milestone-delete {
+  border: none;
+  background: transparent;
+  color: #d9534f;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem;
+  transition: opacity 0.2s ease;
+  font-size: 1rem;
+}
+
+.milestone-delete:hover:not(:disabled) {
+  opacity: 0.75;
+}
+
+.milestone-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Add Task 行的微调，保持与全站按钮风格一致 */
@@ -807,41 +950,145 @@ onBeforeUnmount(() => {
   border-color: var(--border-light);
 }
 
-/* 讨论区头部改为白色（覆盖全局 .chat-header 绿色背景） */
-.pane--discussion .chat-header {
-  background-color: var(--white) !important;
-  color: var(--charcoal) !important;
-  border-bottom: 1px solid var(--border-light);
-}
-
-/* 确保 chat-container 填满可用空间 */
+/* Discussion board layout & chat styling */
 .pane--discussion .chat-container {
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
-  height: 100%;
   min-height: 0;
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1.5px solid var(--border-lighter);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
 }
 
-/* 使 chat-messages 占据可用空间 */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-light);
+}
+
 .chat-messages {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: linear-gradient(
+    180deg,
+    var(--bg-lighter) 0%,
+    rgba(255, 255, 255, 0.95) 30%,
+    var(--white) 100%
+  );
 }
 
-.chat-status {
-  padding: 1rem;
-  text-align: center;
+.message {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  max-width: 100%;
+}
+
+.message.own {
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--mint-green) 0%, var(--eucalypt) 100%);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 6px 16px rgba(113, 163, 153, 0.35);
+  flex-shrink: 0;
+}
+
+.message.own .message-avatar {
+  background: linear-gradient(135deg, var(--dark-green) 0%, #018a63 100%);
+  box-shadow: none;
+}
+
+.message-content {
+  max-width: min(100%, 520px);
+  background: var(--white);
+  padding: 0.85rem 1rem;
+  border-radius: 16px 16px 16px 6px;
+  border: 1px solid var(--border-lighter);
+  box-shadow: 0 8px 24px rgba(1, 113, 81, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.message.own .message-content {
+  background: linear-gradient(135deg, var(--dark-green) 0%, #0d8a66 100%);
+  color: var(--white);
+  border-color: transparent;
+  border-radius: 16px 6px 16px 16px;
+  align-items: flex-end;
+  box-shadow: 0 8px 20px rgba(1, 113, 81, 0.25);
+}
+
+.message-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.message-author {
+  font-weight: 600;
+  color: var(--charcoal);
+  font-size: 0.95rem;
+}
+
+.message.own .message-author {
+  color: var(--white);
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
   color: #6c757d;
-  font-size: 0.9rem;
+}
+
+.message-date {
+  font-weight: 500;
+}
+
+.message.own .message-meta {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.message-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .message-attachments {
-  margin-top: 0.5rem;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  align-items: flex-start;
 }
 
 .message-attachment-link {
@@ -850,51 +1097,50 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: rgba(1, 113, 81, 0.08);
 }
 
 .message-attachment-link:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  background: rgba(1, 113, 81, 0.16);
 }
 
-/* 在每条消息头部右侧同时显示日期与时间的排版 */
-.message-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.message.own .message-attachments {
+  align-items: flex-end;
 }
-.message-date {
-  color: #6c757d;
+
+.message.own .message-attachment-link {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.chat-status {
+  padding: 1.5rem;
+  text-align: center;
+  color: #7a869a;
+  font-size: 0.95rem;
   font-weight: 500;
-}
-
-/* 仅“你自己的消息”把日期变为白色，与气泡一致 */
-.pane--discussion .message.own .message-date {
-  color: #fff !important;
-  opacity: 0.95;
-}
-
-/* Message text color for own messages */
-.pane--discussion .message.own .message-text {
-  color: #fff !important;
 }
 
 .chat-attachments-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background-color: #f8f9fa;
-  border-top: 1px solid var(--border-light);
+  gap: 0.65rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-lighter);
+  border-top: 1px solid var(--border-lighter);
 }
 
 .attachment-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--border-light);
+  padding: 0.4rem 0.8rem;
   border-radius: 999px;
-  background-color: #fff;
+  background: var(--white);
+  border: 1.5px solid var(--border-lighter);
+  box-shadow: 0 4px 12px rgba(1, 113, 81, 0.12);
   font-size: 0.85rem;
   color: var(--charcoal);
 }
@@ -916,13 +1162,12 @@ onBeforeUnmount(() => {
 }
 
 .attachment-remove {
-  background: transparent;
   border: none;
+  background: transparent;
   color: inherit;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  padding: 0;
 }
 
 .attachment-remove:disabled {
@@ -930,9 +1175,80 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
+.chat-input {
+  border-top: 1px solid var(--border-lighter);
+  background: var(--white);
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.chat-input-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  border: 1.5px solid var(--border-lighter);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  background: var(--bg-lighter);
+}
+
+.chat-input-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--charcoal);
+  max-height: 160px;
+}
+
+.chat-input-field:focus {
+  outline: none;
+}
+
+.chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: var(--transition);
+}
+
+.chat-btn--secondary {
+  background: rgba(1, 113, 81, 0.12);
+  color: var(--dark-green);
+}
+
+.chat-btn--secondary:hover:not(:disabled) {
+  background: rgba(1, 113, 81, 0.2);
+}
+
+.chat-btn--primary {
+  background: linear-gradient(135deg, var(--dark-green) 0%, #028f68 100%);
+  color: var(--white);
+  box-shadow: 0 8px 18px rgba(1, 113, 81, 0.25);
+}
+
+.chat-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(1, 113, 81, 0.3);
+}
+
 .chat-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .sr-only {
@@ -979,6 +1295,33 @@ onBeforeUnmount(() => {
   .split[data-active="discussion"] .pane--discussion { display: block; }
   .card {
     min-height: 220px;
+  }
+}
+
+@media (max-width: 700px) {
+  .chat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .chat-input {
+    padding: 0.85rem 1rem 1.2rem;
+  }
+
+  .chat-input-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .chat-actions {
+    justify-content: flex-end;
+  }
+
+  .chat-btn {
+    width: 38px;
+    height: 38px;
   }
 }
 </style>

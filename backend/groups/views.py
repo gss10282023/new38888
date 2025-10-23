@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Max
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -9,11 +9,13 @@ from rest_framework.response import Response
 from core.permissions import IsPlatformAdmin
 from users.models import User
 
-from .models import Group, GroupMember, Task
+from .models import Group, GroupMember, Milestone, Task
 from .serializers import (
     GroupCreateSerializer,
     GroupDetailSerializer,
     GroupSummarySerializer,
+    MilestoneCreateSerializer,
+    MilestoneSerializer,
     TaskCreateSerializer,
     TaskSerializer,
     TaskUpdateSerializer,
@@ -142,6 +144,53 @@ class GroupViewSet(viewsets.GenericViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["post"], url_path="milestones")
+    def create_milestone(self, request, pk=None):
+        """
+        Create a new milestone for the specified group.
+        """
+        group = self.get_object()
+
+        if not self._user_can_manage_group(request.user, group):
+            return Response(
+                {"error": "You do not have permission to add milestones."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = MilestoneCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        max_order = group.milestones.aggregate(max_order=Max("order_index"))["max_order"]
+        milestone = group.milestones.create(
+            title=serializer.validated_data["title"].strip(),
+            description=serializer.validated_data.get("description", ""),
+            order_index=(max_order or 0) + 1,
+        )
+
+        output_serializer = MilestoneSerializer(milestone)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"milestones/(?P<milestone_id>[^/.]+)",
+    )
+    def delete_milestone(self, request, pk=None, milestone_id=None):
+        """
+        Delete a milestone from the group.
+        """
+        group = self.get_object()
+
+        if not self._user_can_manage_group(request.user, group):
+            return Response(
+                {"error": "You do not have permission to delete milestones."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        milestone = get_object_or_404(Milestone, pk=milestone_id, group=group)
+        milestone.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def destroy(self, request, *args, **kwargs):
         """
         Allow platform admins to delete a group.
@@ -200,6 +249,17 @@ class GroupViewSet(viewsets.GenericViewSet):
         )
         output = GroupDetailSerializer(group)
         return Response(output.data, status=status.HTTP_201_CREATED)
+
+    @staticmethod
+    def _user_can_manage_group(user, group: Group) -> bool:
+        if not user.is_authenticated:
+            return False
+        role = getattr(user, "role", "")
+        if role in {"admin", "supervisor"} or user.is_staff:
+            return True
+        if group.mentor_id and group.mentor_id == user.id:
+            return True
+        return group.members.filter(user=user).exists()
 
     def _generate_group_id(self) -> str:
         base = "BTF"
