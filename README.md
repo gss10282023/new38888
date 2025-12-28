@@ -1,15 +1,17 @@
 # BIOTech Futures Hub
 
-[![CI](https://github.com/gss10282023/biotech_futures_hub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gss10282023/biotech_futures_hub/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![Node](https://img.shields.io/badge/Node-20.19%2B%20%7C%2022.12%2B-339933?logo=node.js&logoColor=white)
+[![CI](https://github.com/gss10282023/BIOTech_Futures_Hub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gss10282023/BIOTech_Futures_Hub/actions/workflows/ci.yml) [![Demo (GitHub Pages)](https://img.shields.io/badge/demo-github%20pages-blue)](https://gss10282023.github.io/BIOTech_Futures_Hub/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![Node](https://img.shields.io/badge/Node-20.19%2B%20%7C%2022.12%2B-339933?logo=node.js&logoColor=white)
 
 An open-source friendly full-stack collaboration hub: passwordless login, role-based access, group workspace (milestones/tasks/discussion), content management, and an admin console.
 
-## Preview
-![Dashboard](docs/assets/preview/dashboard.png)
-![Group Workspace](docs/assets/preview/group-workspace.png)
-![Admin Console](docs/assets/preview/admin-console.png)
+Live demo (frontend only): https://gss10282023.github.io/BIOTech_Futures_Hub/
 
-![Walkthrough](docs/assets/preview/walkthrough.gif)
+## Preview
+[![Dashboard](docs/assets/preview/dashboard.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Group Workspace](docs/assets/preview/group-workspace.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Admin Console](docs/assets/preview/admin-console.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+
+[![Walkthrough](docs/assets/preview/walkthrough.gif)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
 
 ---
 
@@ -39,7 +41,7 @@ This repo includes a GitHub Pages workflow that deploys the frontend in demo mod
 
 1. In GitHub: `Settings` → `Pages` → `Build and deployment` → `Source`: **GitHub Actions**
 2. Wait for the workflow **Deploy Frontend (GitHub Pages)** to finish
-3. Open: `https://<owner>.github.io/<repo>/`
+3. Open: https://gss10282023.github.io/BIOTech_Futures_Hub/
 
 ---
 
