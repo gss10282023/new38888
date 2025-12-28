@@ -10,7 +10,12 @@ export default defineConfig([
     files: ['**/*.{js,mjs,jsx,vue}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores([
+    '**/dist/**',
+    '**/dist-ssr/**',
+    '**/coverage/**',
+    'public/mockServiceWorker.js',
+  ]),
 
   {
     languageOptions: {
@@ -23,4 +28,18 @@ export default defineConfig([
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
   skipFormatting,
+
+  {
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
 ])

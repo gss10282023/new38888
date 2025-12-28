@@ -1,215 +1,278 @@
 # BIOTech Futures Hub
 
-本仓库是 BIOTech Futures Hub 的完整全栈项目，包含：
-- **后端**：Django REST API（魔法链接登录、用户/小组/活动/资源/公告等接口）
-- **前端**：基于 Vue 3 + Vite 的单页应用
-- **文档**：位于 `docs/` 目录的中英文技术文档
+[![CI](https://github.com/gss10282023/biotech_futures_hub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gss10282023/biotech_futures_hub/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![Node](https://img.shields.io/badge/Node-20.19%2B%20%7C%2022.12%2B-339933?logo=node.js&logoColor=white)
+
+An open-source friendly full-stack collaboration hub: passwordless login, role-based access, group workspace (milestones/tasks/discussion), content management, and an admin console.
+
+## Preview
+![Dashboard](docs/assets/preview/dashboard.png)
+![Group Workspace](docs/assets/preview/group-workspace.png)
+![Admin Console](docs/assets/preview/admin-console.png)
+
+![Walkthrough](docs/assets/preview/walkthrough.gif)
 
 ---
 
-## 项目结构
+## Core Features
+- Passwordless magic link + OTP (JWT session)
+- Role-based access (`admin` / `mentor` / `student` / `supervisor`)
+- Group workspace: milestones, tasks, discussion (with attachments)
+- Resources / Events / Announcements management and audience visibility
+- Admin console: stats, user management, exports, group creation
+
+## Technical Highlights
+- Django REST Framework + Channels (WebSocket discussion)
+- Vue 3 + Vite + Pinia (SPA)
+- Automated tests: `tests/` + `tests/run-all-tests.sh` (backend unit/API + integration flows + frontend Vitest)
+
+## Demo Mode (No Backend Required)
+Try the UI without Postgres/Redis/backend services (powered by MSW mocks):  
+```bash
+cd frontend
+npm install
+VITE_DEMO_MODE=true npm run dev
 ```
-new38888/
-├── README.md                     # 中文说明（即本文档）
-├── README.en.md                  # 英文说明
-├── backend/                      # Django 后端项目
+The login page will show one-click demo accounts. You can also sign in with any email + any 6-digit code (local demo only).
+
+---
+
+Full-stack application supporting the BIOTech Futures program.  
+The repository contains a Django REST API (`backend/`) and a Vue 3 single-page app (`frontend/`), plus extensive documentation under `docs/`.
+
+---
+
+## Repository Structure
+```
+biotech_futures_hub/
+├── README.md                     # Project overview & setup
+├── LICENSE
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
+├── PUBLISHING.md
+├── OPEN_SOURCE_PLAN.md
+├── backend/                      # Django project (REST API, auth, admin, etc.)
 │   ├── manage.py
 │   ├── requirements.txt
-│   ├── btf_backend/              # 配置、URL、WSGI/ASGI
-│   ├── authentication/           # 魔法链接 + JWT 认证流程
-│   ├── users/                    # 用户与管理员接口
-│   ├── groups/                   # 小组、里程碑、任务接口
-│   ├── chat/                     # 小组聊天接口
-│   ├── resources/                # 资源库接口
-│   ├── events/                   # 活动接口
-│   ├── announcements/            # 公告接口
-│   ├── core/                     # 健康检查、文件上传、权限
+│   ├── btf_backend/              # Project settings, URLs, ASGI/WSGI
+│   ├── authentication/           # Magic-link login + JWT issuance
+│   ├── users/                    # Profiles, admin APIs
+│   ├── groups/                   # Group, milestone, task APIs
+│   ├── chat/                     # Group chat endpoints
+│   ├── resources/                # Resource library APIs
+│   ├── events/                   # Event APIs
+│   ├── announcements/            # Announcement APIs
+│   ├── core/                     # Health check, uploads, shared permissions
 │   └── ...
-├── frontend/                     # Vue 3 + Vite 前端
+├── frontend/                     # Vue 3 + Vite client
 │   ├── package.json
 │   ├── src/
-│   │   ├── main.js               # 程序入口
-│   │   ├── App.vue               # 全局布局 + GSAP 动画
-│   │   ├── router/               # Hash 路由与登录守卫
-│   │   ├── stores/               # Pinia store（认证、资源、管理员等）
-│   │   ├── views/                # 页面组件（仪表盘、管理员等）
-│   │   └── assets/styles.css     # 全局样式与设计变量
+│   │   ├── main.js               # App bootstrap
+│   │   ├── App.vue               # Global layout + GSAP transitions
+│   │   ├── router/               # Hash router with auth guard
+│   │   ├── stores/               # Pinia stores (auth, groups, admin, etc.)
+│   │   ├── views/                # Page components (dashboard, admin, etc.)
+│   │   └── assets/styles.css     # Design tokens and global styles
 │   └── ...
-├── docs/                         # 技术文档
+├── docs/                         # Project documentation
 │   ├── API.md
-│   ├── backend-overview.en.md / .zh.md
-│   ├── frontend-overview.en.md / .zh.md
-│   └── BACKEND_PLAN.md
-├── tests/                        # 前后端测试套件（Django + Vitest，详见 docs/tests-overview.md）
-├── package.json                  # 根目录依赖占位
+│   ├── backend-overview.md
+│   ├── frontend-overview.md
+│   ├── tests-overview.md
+│   └── release-notes/
+├── tests/                        # Backend + frontend test suites (see docs/tests-overview.md)
+├── package.json                  # Root dependency placeholder
 ├── package-lock.json
 └── ...
 ```
 
 ---
 
-## 运行环境要求
-- **Python** 3.11 及以上（建议使用虚拟环境）
-- **Node.js** 20.19 或 22.12 及以上
-- **PostgreSQL**、**Redis**（可本地或云端部署）
-- 需要配置 **Vultr Object Storage**（S3 兼容）和 **邮件服务** 才能在生产环境发送魔法链接邮件并存储文件
+## Prerequisites
+- **Python** 3.11+ (virtual environment recommended)
+- **Node.js** 20.19+ or 22.12+
+- **PostgreSQL** and **Redis** instances (local or managed)
+- Access to **Vultr Object Storage** (S3-compatible) and an **email provider** if you intend to send real magic-link emails
 
 ---
 
-## 快速启动
+## Quick Start
 
-### 1. 后端（Django API）
+### 0. Docker Compose (One-command Repro, Recommended)
+```bash
+./start_docker.sh
+```
+
+Equivalent manual steps:
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+docker compose up --build
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000 (API prefix `/api`)
+- Compose runs `migrate` and seeds demo data by default (toggle `SEED_DEMO_DATA` in `docker-compose.yml`).
+- Demo admin: `admin@demo.local` / `admin123456` (local demo only)
+- OTP login: emails are printed to backend logs by default; run `docker compose logs -f backend` to grab the 6-digit code.
+
+### 1. Backend (Django API)
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate        # Windows 使用 .venv\Scripts\activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 创建 .env（示例见下方配置说明）
+# Create a .env file (see “Configuration” below)
 python manage.py migrate
-python manage.py createsuperuser  # 可选：创建管理员
+python manage.py createsuperuser  # optional
 python manage.py runserver 0.0.0.0:8000
 ```
 
-### 2. 前端（Vue 单页应用）
+### 2. Frontend (Vue SPA)
 ```bash
 cd frontend
 npm install
-npm run dev            # 默认地址 http://localhost:5173
+npm run dev            # http://localhost:5173 by default
 ```
 
-浏览器访问 http://localhost:5173 即可，并会使用 `VITE_API_BASE_URL` 指定的后端地址。若前后端分属不同域名，可在 `frontend/.env.local` 里同时配置 `VITE_API_BASE_URL` 与 `VITE_WS_BASE_URL`。
+Point your browser to http://localhost:5173 and the SPA will proxy API calls to the backend URL configured in `VITE_API_BASE_URL`. When hosting the API and Channels server on different origins, add `VITE_API_BASE_URL` and `VITE_WS_BASE_URL` to `frontend/.env.local`.
 
 ---
 
-## 配置说明
+## Configuration
 
-### 后端环境变量 (`backend/.env`)
-创建 `backend/.env`，例如：
+### Environment file (`backend/.env`)
+Create `backend/.env` (or use the OS environment) with values similar to:
 ```dotenv
 # Django
-SECRET_KEY=请替换
+SECRET_KEY=replace-me
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-# 数据库
+# Database
 DB_NAME=btf_db
 DB_USER=btf_user
 DB_PASSWORD=btf_password_2025
 DB_HOST=127.0.0.1
 DB_PORT=5432
 
-# Redis（缓存 & OTP 存储）
+# Redis cache / OTP storage
 REDIS_URL=redis://127.0.0.1:6379/1
 
-# 魔法链接中使用的前端地址
+# Frontend origin used in magic links
 FRONTEND_BASE_URL=http://localhost:5173
 MAGIC_LINK_EXPIRY_SECONDS=600
 
-# 邮件默认使用控制台输出，生产环境请替换
+# Email defaults (override for real SMTP providers)
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 DEFAULT_FROM_EMAIL=noreply@biotechfutures.org
 ```
 
-下一节将介绍如何切换 Vultr 存储和邮件服务。
+The sections below explain how to switch Vultr object storage and configure a production email provider.
 
 ---
 
-### 前端环境变量 (`frontend/.env` 或 `.env.local`)
+### Frontend environment (`frontend/.env` or `.env.local`)
 ```dotenv
 VITE_API_BASE_URL=http://127.0.0.1:8000/api
 VITE_WS_BASE_URL=ws://127.0.0.1:8000
 ```
 
-- `VITE_API_BASE_URL`：前端请求后端 REST API 的基础地址，需包含 `/api` 路径。
-- `VITE_WS_BASE_URL`：可选，用于覆盖 WebSocket 主机（群聊 Channels 连接等实时功能）。未设置时会复用 `VITE_API_BASE_URL` 的域名并自动推断 `ws://`/`wss://` 协议及 `/ws/chat/...` 路径。
+- `VITE_API_BASE_URL`: base URL (including `/api`) used for REST calls.
+- `VITE_WS_BASE_URL`: optional explicit WebSocket origin for real-time chat. When omitted, the app derives it from `VITE_API_BASE_URL` and automatically switches to `ws://` or `wss://` with the `/ws/chat/...` suffix.
 
 ---
 
-## 更换 Vultr Object Storage（S3 兼容）
-项目默认使用本地文件系统保存上传文件。若需改用 Vultr：
+## Switching Vultr Object Storage (S3 Compatible)
+Magic-link emails and file uploads rely on Django’s storage backend. By default the project stores uploads on the local filesystem; to use Vultr Object Storage:
 
-1. **确认依赖**：`requirements.txt` 已包含 `django-storages`、`boto3`，确保已安装。
-2. **在 `.env` 中设置以下变量**：
+1. **Enable the S3 backend**  
+   Ensure these packages are installed (already listed in `requirements.txt`): `django-storages`, `boto3`.
+
+2. **Set environment variables** in `backend/.env`:
    ```dotenv
    DEFAULT_FILE_STORAGE=storages.backends.s3boto3.S3Boto3Storage
-   AWS_ACCESS_KEY_ID=<你的 Vultr Access Key>
-   AWS_SECRET_ACCESS_KEY=<你的 Vultr Secret Key>
-   AWS_STORAGE_BUCKET_NAME=<你的桶名称>
-   AWS_S3_ENDPOINT_URL=https://<区域>.vultrobjects.com
-   AWS_S3_REGION_NAME=<区域>         # 示例：sjc1
-   AWS_S3_ADDRESSING_STYLE=virtual
-   AWS_DEFAULT_ACL=public-read       # 可根据需要调整
+   AWS_ACCESS_KEY_ID=<YOUR_VULTR_ACCESS_KEY>
+   AWS_SECRET_ACCESS_KEY=<YOUR_VULTR_SECRET_KEY>
+   AWS_STORAGE_BUCKET_NAME=<YOUR_BUCKET_NAME>
+   AWS_S3_ENDPOINT_URL=https://<region>.vultrobjects.com
+   AWS_S3_REGION_NAME=<region>         # e.g. sjc1
+   AWS_S3_ADDRESSING_STYLE=virtual     # or auto
+   AWS_DEFAULT_ACL=public-read         # adjust to your needs
    ```
-3. **可选：自定义域名**  
-   若启用了 CDN 或自定义域名，可设置 `AWS_S3_CUSTOM_DOMAIN`。
-4. **如需让 Django 提供静态资源** 请运行 `python manage.py collectstatic`。
-5. **重启后端**，新的资源上传（如资源库文件、活动封面、聊天附件）即会写入 Vultr 存储。
+
+3. **Optional domain customisation**  
+   If you use a CDN or custom domain, set `AWS_S3_CUSTOM_DOMAIN` accordingly so generated URLs match your domain.
+
+4. **Collect static files** (if serving frontend assets from Django) with `python manage.py collectstatic`.
+
+5. **Restart the backend** so the new configuration is applied. New uploads (resources, event covers, chat attachments) will now write to Vultr.
 
 ---
 
-## 更换魔法链接邮件发送服务
-认证流程会向用户发送包含魔法链接与 6 位 OTP 的邮件。生产环境可选择 SMTP 或第三方 ESP（如 SendGrid、Mailgun）：
+## Updating the Magic-Link Email Provider
+The authentication flow emails users a magic link and a 6-digit OTP. To use a real SMTP or ESP (e.g., SendGrid, Mailgun):
 
-1. **配置邮件后端**
-   - 若使用 SMTP：
+1. **Choose an email backend**
+   - For plain SMTP:
      ```dotenv
      EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
      EMAIL_HOST=smtp.sendgrid.net
      EMAIL_PORT=587
      EMAIL_USE_TLS=True
-     EMAIL_HOST_USER=apikey                   # SendGrid 示例
-     EMAIL_HOST_PASSWORD=<你的 SendGrid Key>
+     EMAIL_HOST_USER=apikey                   # SendGrid example
+     EMAIL_HOST_PASSWORD=<YOUR_SENDGRID_KEY>
      DEFAULT_FROM_EMAIL=BIOTech Futures Hub <noreply@biotechfutures.org>
      ```
-   - 若使用 Anymail（已在依赖中）：
+   - For Anymail (already in requirements):
      ```dotenv
      EMAIL_BACKEND=anymail.backends.sendgrid.EmailBackend
-     ANYMAIL_SENDGRID_API_KEY=<你的 SendGrid Key>
+     ANYMAIL_SENDGRID_API_KEY=<YOUR_SENDGRID_KEY>
      DEFAULT_FROM_EMAIL=noreply@biotechfutures.org
      ```
-2. **更新前端地址**：若前端部署在其他域名，请同步修改 `FRONTEND_BASE_URL`，确保邮件中的链接正确。
-3. **自定义邮件内容**（可选）：编辑 `backend/authentication/views.py` 内 `request_magic_link` 函数中的主题或正文。
-4. **测试**：触发登录流程，检查邮件服务是否收到请求。使用 SMTP 时可在提供商控制台查看发送记录；使用默认 console backend 时则会在终端打印邮件内容。
+
+2. **Update `FRONTEND_BASE_URL`** if your deployed frontend uses a different domain, so links in the email point to the correct host.
+
+3. **Customize the message** (optional)  
+   Edit `backend/authentication/views.py` to adjust the email subject or body (`request_magic_link` function). The OTP and magic-link expiry respect `MAGIC_LINK_EXPIRY_SECONDS`.
+
+4. **Test** by triggering the login flow. With SMTP backends, check provider dashboards for delivery events; with the console backend you will still see emails logged to the console.
 
 ---
 
-## 常用命令
-| 功能                           | 命令                                                                           |
-|--------------------------------|--------------------------------------------------------------------------------|
-| 安装后端依赖                  | `pip install -r backend/requirements.txt`                                      |
-| 运行后端测试                  | `python manage.py test`                                                        |
-| 运行全量测试                  | `./tests/run-all-tests.sh`                                                     |
-| 生成数据库迁移                | `python manage.py makemigrations`                                              |
-| 启动前端开发模式              | `npm run dev`（于 `frontend/` 目录下）                                         |
-| 构建前端生产包                | `npm run build`                                                                |
+## Useful Commands
+| Task                              | Command                                                                 |
+|-----------------------------------|-------------------------------------------------------------------------|
+| Install backend deps              | `pip install -r backend/requirements.txt`                               |
+| Run backend tests                 | `python manage.py test`                                                 |
+| Run all automated tests           | `./tests/run-all-tests.sh`                                              |
+| Create database migrations        | `python manage.py makemigrations`                                       |
+| Run frontend in dev mode          | `npm run dev` (inside `frontend/`)                                      |
+| Build frontend bundle             | `npm run build`                                                         |
 
 ---
 
-## 测试与质量保证
-- **测试目录**：所有后端、跨端、前端测试均位于 `tests/`，详细说明请参阅：
-  - `docs/tests-overview.md`（中文）
-  - `docs/tests-overview.en.md`（English）
-- **一键执行全部测试：**
+## Testing & Quality
+- **Test suites:** shared backend/API/frontend tests are housed in `tests/`. For detailed coverage breakdowns, see `docs/tests-overview.md`.
+- **All-in-one test run:**
   ```bash
-  chmod +x tests/run-all-tests.sh   # 首次赋权
-  ./tests/run-all-tests.sh          # 顺序运行后端单元/API、跨端流程、前端 Vitest
+  chmod +x tests/run-all-tests.sh   # first run only
+  ./tests/run-all-tests.sh          # backend unit/API → cross-service flows → frontend Vitest
   ```
-  每个阶段都会打印结果，并在最后输出 ✅/❌ 汇总表。
-- 也可按需单独运行：
-  - `python manage.py test tests.backend`（后端 API/领域逻辑）
-  - `python manage.py test tests.api tests.integration`（跨端流程）
-  - `cd frontend && npm run test`（前端单元/集成）
+  The script streams each phase and ends with a ✅/❌ summary table.
+- **Run suites individually:**
+  - `python manage.py test tests.backend`
+  - `python manage.py test tests.api tests.integration`
+  - `cd frontend && npm run test`
 
 ---
 
-## 延伸阅读
-- 后端架构：`docs/backend-overview.zh.md`
-- 前端架构：`docs/frontend-overview.zh.md`
-- REST API 参考：`docs/API.md`
-
-英文说明请参见 `README.en.md` 与 `docs` 下的英文文档。
+## Further Reading
+- Backend deep dive: `docs/backend-overview.md`
+- Frontend walkthrough: `docs/frontend-overview.md`
+- REST API reference: `docs/API.md`
 
 ---
 
-_最后更新：2025 年 10 月 24 日_
+_Last updated: October 24, 2025_

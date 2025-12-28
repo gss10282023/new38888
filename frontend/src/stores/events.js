@@ -203,8 +203,6 @@ export const useEventStore = defineStore('events', {
         }
         this.items = this.items.filter((item) => item.id !== eventId)
         return true
-      } catch (error) {
-        throw error
       } finally {
         const { [eventId]: _removed, ...rest } = this.deletingIds
         this.deletingIds = rest

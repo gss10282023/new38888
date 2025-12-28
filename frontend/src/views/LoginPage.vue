@@ -34,6 +34,26 @@
           <p class="login-subtitle">Welcome! Please sign in to continue.</p>
         </div>
 
+        <div v-if="isDemoMode" class="demo-banner">
+          <div class="demo-banner-title">Demo Mode</div>
+          <p class="demo-banner-text">Skip email and jump into the UI with a demo account:</p>
+          <div class="demo-banner-actions">
+            <button type="button" class="btn btn-outline btn-sm" @click="loginAsDemoRole('student')">
+              Continue as Student
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" @click="loginAsDemoRole('mentor')">
+              Continue as Mentor
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" @click="loginAsDemoRole('supervisor')">
+              Continue as Supervisor
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" @click="loginAsDemoRole('admin')">
+              Continue as Admin
+            </button>
+          </div>
+          <p class="demo-banner-hint">Or use any email and enter any 6-digit code to sign in.</p>
+        </div>
+
 <form @submit.prevent="handleLogin">
   <div class="form-group">
     <label class="form-label">Email Address</label>
@@ -95,6 +115,8 @@ import { nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import logo from '@/assets/btf-logo.png'
+import { isDemoMode } from '@/utils/demo'
+import { createAccessToken, createRefreshToken, getDemoUserByRole } from '@/mocks/demoData'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -127,6 +149,16 @@ const leftHtml = ref(`
     Explore key dates, eligibility, submission guidelines, and more on our website.
   </p>
 `)
+
+const loginAsDemoRole = async (role) => {
+  const user = getDemoUserByRole(role)
+  auth.setSession({
+    user,
+    accessToken: createAccessToken(user.id),
+    refreshToken: createRefreshToken(user.id)
+  })
+  await router.push('/dashboard')
+}
 
 const focusFirstOtp = () => {
   const firstInput = document.querySelector('.otp-input')
@@ -253,6 +285,38 @@ onMounted(async () => {
   width: 70%;
   height: 70%;
   object-fit: contain;
+}
+
+.demo-banner {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(1, 113, 81, 0.06);
+  margin-bottom: 1rem;
+}
+
+.demo-banner-title {
+  font-weight: 700;
+  color: var(--dark-green);
+  margin-bottom: 0.35rem;
+}
+
+.demo-banner-text {
+  margin: 0 0 0.75rem 0;
+  color: var(--charcoal);
+  font-size: 0.92rem;
+}
+
+.demo-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.demo-banner-hint {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.85rem;
+  color: #6c757d;
 }
 
 .custom-content :deep(h2.info-title) {

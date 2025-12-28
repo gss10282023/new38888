@@ -1,0 +1,28 @@
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Django
+backend/staticfiles/
+backend/media/*
+!backend/media/uploads/
+backend/media/uploads/*
+!backend/media/uploads/.gitkeep
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

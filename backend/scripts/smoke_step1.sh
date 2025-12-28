@@ -1,12 +1,16 @@
 #!/bin/bash
 
 echo "==================================="
-echo "Step 1 测试脚本"
+echo "Smoke 脚本：后端基础检查"
 echo "==================================="
 echo ""
 
+# 允许从任意目录执行（统一切到 backend/）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}/.."
+
 # 激活虚拟环境提醒
-if [[ -z "$VIRTUAL_ENV" ]]; then
+if [[ -z "${VIRTUAL_ENV:-}" ]]; then
     echo "⚠️  请先激活虚拟环境:"
     echo "   source venv/bin/activate  (Mac/Linux)"
     echo "   venv\\Scripts\\activate     (Windows)"
@@ -89,7 +93,7 @@ python manage.py spectacular --file schema.yml > /dev/null 2>&1 && {
 echo ""
 
 echo "==================================="
-echo "✅ Step 1 所有测试通过！"
+echo "✅ Smoke 检查通过！"
 echo "==================================="
 echo ""
 echo "下一步操作："
@@ -98,4 +102,4 @@ echo "2. 访问 API 文档: http://localhost:8000/api/docs/"
 echo "3. 访问健康检查: http://localhost:8000/api/health/"
 echo "4. 访问 Django Admin: http://localhost:8000/admin/"
 echo ""
-echo "准备开始 Step 2: 认证系统开发"
+echo "后续：继续运行完整测试或启动服务进行联调。"

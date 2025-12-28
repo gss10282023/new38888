@@ -1,11 +1,14 @@
 #!/bin/bash
 
 echo "==================================="
-echo "Step 6 测试脚本 - 资源库"
+echo "Smoke 脚本：资源库"
 echo "==================================="
 echo ""
 
-if [[ -z "$VIRTUAL_ENV" ]]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}/.."
+
+if [[ -z "${VIRTUAL_ENV:-}" ]]; then
     echo "⚠️  请先激活虚拟环境:"
     echo "   source venv/bin/activate  (macOS/Linux)"
     echo "   venv\\Scripts\\activate     (Windows)"
@@ -27,7 +30,7 @@ if [[ $TEST_EXIT -ne 0 ]]; then
 fi
 
 echo ""
-echo "✅ Step 6 测试通过！"
+echo "✅ Smoke 检查通过！"
 echo "   - 资源模型与 API 可用"
 echo "   - 上传/封面/权限 行为已验证"
 echo ""

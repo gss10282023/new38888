@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAnnouncementStore } from '@/stores/announcements'
 import { useAuthStore } from '@/stores/auth'

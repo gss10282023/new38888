@@ -4,49 +4,32 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { gsap } from 'gsap'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-const emit = defineEmits<{
-  (event: 'complete'): void
-}>()
+const emit = defineEmits(['complete'])
 
-const props = withDefaults(
-  defineProps<{
-    distance?: number
-    direction?: 'vertical' | 'horizontal'
-    reverse?: boolean
-    duration?: number
-    ease?: string
-    initialOpacity?: number
-    animateOpacity?: boolean
-    scale?: number
-    threshold?: number
-    delay?: number
-    once?: boolean
-  }>(),
-  {
-    distance: 100,
-    direction: 'vertical',
-    reverse: false,
-    duration: 0.8,
-    ease: 'power3.out',
-    initialOpacity: 0,
-    animateOpacity: true,
-    scale: 1,
-    threshold: 0.1,
-    delay: 0,
-    once: false,
-  }
-)
+const props = defineProps({
+  distance: { type: Number, default: 100 },
+  direction: { type: String, default: 'vertical' },
+  reverse: { type: Boolean, default: false },
+  duration: { type: Number, default: 0.8 },
+  ease: { type: String, default: 'power3.out' },
+  initialOpacity: { type: Number, default: 0 },
+  animateOpacity: { type: Boolean, default: true },
+  scale: { type: Number, default: 1 },
+  threshold: { type: Number, default: 0.1 },
+  delay: { type: Number, default: 0 },
+  once: { type: Boolean, default: false }
+})
 
 const axis = computed(() => (props.direction === 'horizontal' ? 'x' : 'y'))
 const offset = computed(() => (props.reverse ? props.distance : -props.distance))
 
-const root = ref<HTMLElement | null>(null)
-let observer: IntersectionObserver | null = null
-let tween: gsap.core.Tween | null = null
+const root = ref(null)
+let observer = null
+let tween = null
 let hasPlayed = false
 
 const stopAnimation = () => {
@@ -58,7 +41,7 @@ const stopAnimation = () => {
 
 const setInitialState = () => {
   if (!root.value) return
-  const initialVars: gsap.TweenVars = {
+  const initialVars = {
     [axis.value]: offset.value,
     willChange: 'transform, opacity',
   }
@@ -79,7 +62,7 @@ const runAnimation = () => {
   stopAnimation()
   hasPlayed = true
 
-  const toVars: gsap.TweenVars = {
+  const toVars = {
     [axis.value]: 0,
     duration: props.duration,
     ease: props.ease,
@@ -100,7 +83,7 @@ const runAnimation = () => {
   tween = gsap.to(root.value, toVars)
 }
 
-const handleIntersect: IntersectionObserverCallback = (entries) => {
+const handleIntersect = (entries) => {
   entries.forEach((entry) => {
     if (!entry.isIntersecting) return
     if (props.once && hasPlayed) return

@@ -150,7 +150,7 @@ All network calls funnel through `auth.authenticatedFetch`, which injects the be
 ### Quality tooling
 - ESLint config (`eslint.config.js`) extends Vue + Prettier defaults. Fix warnings before committing.
 - Prettier is restricted to `src/` via `npm run format`.
-- No dedicated unit tests yet; consider using Vitest + Vue Test Utils for future coverage.
+- Tests use Vitest + Vue Test Utils; see `docs/tests-overview.md` for details.
 
 ## 9. Build & Deployment
 - `npm run build` outputs a hashed asset bundle in `dist/` (HTML + JS + CSS). Host the directory via any static server (e.g., Nginx, Netlify, Vercel).
@@ -167,7 +167,6 @@ All network calls funnel through `auth.authenticatedFetch`, which injects the be
 
 ## 11. Reference
 - Backend integration contract: `docs/API.md`
-- Backend architecture: `docs/backend-overview.en.md`
-- Chinese localisation: `docs/frontend-overview.zh.md`
+- Backend architecture: `docs/backend-overview.md`
 
 _Last updated: October 24, 2025_

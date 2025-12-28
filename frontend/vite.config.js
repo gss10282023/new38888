@@ -21,6 +21,7 @@ const resolveAlias = {
     new URL('./node_modules/@vue/test-utils/dist/vue-test-utils.esm-bundler.mjs', import.meta.url)
   ),
   'msw/node': fileURLToPath(new URL('./node_modules/msw/lib/node/index.mjs', import.meta.url)),
+  'msw/browser': fileURLToPath(new URL('./node_modules/msw/lib/browser/index.mjs', import.meta.url)),
   msw: fileURLToPath(new URL('./node_modules/msw/lib/core/index.mjs', import.meta.url)),
 }
 

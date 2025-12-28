@@ -1,0 +1,16 @@
+title = "BIOTech Futures Hub gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow demo/dev placeholders that are expected in an OSS repo."
+regexes = [
+  '''admin123456''',
+  '''btf_password_2025''',
+  '''django-insecure-dev-only-change-me''',
+  '''your_api_key_here''',
+  '''your_vultr_access_key''',
+  '''your_vultr_secret_key''',
+]
+

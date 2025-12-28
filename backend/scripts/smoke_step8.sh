@@ -1,11 +1,14 @@
 #!/bin/bash
 
 echo "==================================="
-echo "Step 8 测试脚本 - 公告系统"
+echo "Smoke 脚本：公告系统"
 echo "==================================="
 echo ""
 
-if [[ -z "$VIRTUAL_ENV" ]]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}/.."
+
+if [[ -z "${VIRTUAL_ENV:-}" ]]; then
     echo "⚠️  请先激活虚拟环境:"
     echo "   source venv/bin/activate  (macOS/Linux)"
     echo "   venv\\Scripts\\activate     (Windows)"
@@ -26,7 +29,7 @@ if [[ $TEST_RESULT -ne 0 ]]; then
 fi
 
 echo ""
-echo "✅ Step 8 测试通过！"
+echo "✅ Smoke 检查通过！"
 echo "   - 公告列表按角色过滤与搜索正确"
 echo "   - 公告详情、管理员创建功能验证通过"
 echo ""

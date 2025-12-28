@@ -221,7 +221,7 @@ Helper shell scripts:
 - `backend/install_dependencies.sh` – installs system-level prerequisites (used in CI/bootstrap).
 - `backend/setup_database.sh` – guides PostgreSQL user/db creation.
 - `backend/scripts/add_users_to_group.py` – quick utility to seed a group with users via Django shell.
-- `backend/test_step*.sh` – automated smoke steps used in course milestones; review before reuse.
+- `backend/scripts/smoke_step*.sh` – legacy smoke scripts for quickly verifying core modules; review/update as needed.
 
 ## 9. Deployment Notes
 - Use Gunicorn (or another WSGI server) to run `btf_backend.wsgi:application`.
@@ -251,7 +251,6 @@ Helper shell scripts:
 
 ## 12. Reference
 - Detailed HTTP contract: `docs/API.md`
-- Backend roadmap history: `docs/BACKEND_PLAN.md`
 - Frontend views (Vue): `frontend/src/views/` (useful for understanding expected payload shapes)
 
 ## 13. Request Lifecycle & Middleware

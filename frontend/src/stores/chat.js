@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { safeJson } from '@/utils/http'
 import { useAuthStore } from '@/stores/auth'
+import { isDemoMode } from '@/utils/demo'
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
@@ -141,6 +142,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     ensureSocket(groupId) {
+      if (isDemoMode) return null
       if (!groupId || typeof window === 'undefined' || !('WebSocket' in window)) {
         return null
       }
@@ -241,7 +243,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    _handleSocketClose(groupId, socket, event) {
+    _handleSocketClose(groupId, socket, _event) {
       const nextSockets = { ...this.socketByGroup }
       if (nextSockets[groupId] === socket) {
         delete nextSockets[groupId]

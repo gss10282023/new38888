@@ -1,11 +1,14 @@
 #!/bin/bash
 
 echo "==================================="
-echo "Step 7 测试脚本 - 活动管理"
+echo "Smoke 脚本：活动管理"
 echo "==================================="
 echo ""
 
-if [[ -z "$VIRTUAL_ENV" ]]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}/.."
+
+if [[ -z "${VIRTUAL_ENV:-}" ]]; then
     echo "⚠️  请先激活虚拟环境:"
     echo "   source venv/bin/activate  (macOS/Linux)"
     echo "   venv\\Scripts\\activate     (Windows)"
@@ -26,7 +29,7 @@ if [[ $TEST_RESULT -ne 0 ]]; then
 fi
 
 echo ""
-echo "✅ Step 7 测试通过！"
+echo "✅ Smoke 检查通过！"
 echo "   - 活动列表 / 详情 / 报名 API 正常工作"
 echo "   - 封面上传仅管理员可操作"
 echo ""

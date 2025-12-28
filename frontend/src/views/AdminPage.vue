@@ -764,14 +764,13 @@ const {
   usersError,
   updatingStatus,
   filterOptions,
-  filterOptionsLoading,
-  filterOptionsError,
-  creatingUser,
-  savingUser,
-  detailLoading,
-  exporting,
-  deletingUser
-} = storeToRefs(adminStore)
+	  filterOptionsLoading,
+	  filterOptionsError,
+	  creatingUser,
+	  savingUser,
+	  exporting,
+	  deletingUser
+	} = storeToRefs(adminStore)
 
 const { isAdmin } = storeToRefs(authStore)
 

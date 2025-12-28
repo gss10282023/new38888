@@ -120,11 +120,7 @@ export const useAuthStore = defineStore('auth', {
 
       const response = await fetch(`${API_BASE_URL}${path}`, config)
       if (response.status === 401 && retry) {
-        try {
-          await this.refreshSession()
-        } catch (error) {
-          throw error
-        }
+        await this.refreshSession()
         if (!this.accessToken) {
           throw new Error('Session expired, please sign in again')
         }
@@ -195,21 +191,27 @@ export const useAuthStore = defineStore('auth', {
       // 当检测到账号切换时，重置依赖于用户身份的缓存
       const currentUserId = this.user?.id ?? null
       if (previousUserId !== null && currentUserId !== null && previousUserId !== currentUserId) {
-        try {
-          const { useGroupStore } = require('@/stores/groups')
-          const { useResourceStore } = require('@/stores/resources')
-          const { useEventStore } = require('@/stores/events')
-          const { useAnnouncementStore } = require('@/stores/announcements')
-          const { useChatStore } = require('@/stores/chat')
+        ;(async () => {
+          const [
+            { useGroupStore },
+            { useResourceStore },
+            { useEventStore },
+            { useAnnouncementStore },
+            { useChatStore },
+          ] = await Promise.all([
+            import('@/stores/groups'),
+            import('@/stores/resources'),
+            import('@/stores/events'),
+            import('@/stores/announcements'),
+            import('@/stores/chat'),
+          ])
 
           useGroupStore().reset()
           useResourceStore().reset()
           useEventStore().reset()
           useAnnouncementStore().reset()
           useChatStore().reset()
-        } catch {
-          // ignore require issues (e.g. during hydration in non-module context)
-        }
+        })().catch(() => {})
       }
     },
 

@@ -1,3 +1,4 @@
+<!-- Legacy prototype: archived UI draft (not wired into `frontend/`). -->
 <template>
   <div class="content-area modern-admin" v-if="isAdmin">
     <!-- Header with Track Selector -->
