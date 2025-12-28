@@ -31,7 +31,12 @@ export default defineConfig(({ mode }) => {
     plugins.push(vueDevTools(), Inspect())
   }
 
+  const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1]
+  const pagesBase =
+    process.env.VITE_BASE_URL || (process.env.GITHUB_ACTIONS && repoName ? `/${repoName}/` : '/')
+
   return {
+    base: pagesBase,
     plugins,
     resolve: {
       alias: resolveAlias,

@@ -9,7 +9,12 @@ import { useAuthStore } from './stores/auth'
 const bootstrap = async () => {
   if (isDemoMode) {
     const { worker } = await import('./mocks/browser')
-    await worker.start({ onUnhandledRequest: 'bypass', quiet: true })
+    const baseUrl = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
+    await worker.start({
+      serviceWorker: { url: `${baseUrl}mockServiceWorker.js` },
+      onUnhandledRequest: 'bypass',
+      quiet: true
+    })
   }
 
   const app = createApp(App)

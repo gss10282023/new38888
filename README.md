@@ -34,6 +34,13 @@ VITE_DEMO_MODE=true npm run dev
 ```
 The login page will show one-click demo accounts. You can also sign in with any email + any 6-digit code (local demo only).
 
+## GitHub Pages Demo (Frontend Only)
+This repo includes a GitHub Pages workflow that deploys the frontend in demo mode on every push to `main`.
+
+1. In GitHub: `Settings` → `Pages` → `Build and deployment` → `Source`: **GitHub Actions**
+2. Wait for the workflow **Deploy Frontend (GitHub Pages)** to finish
+3. Open: `https://<owner>.github.io/<repo>/`
+
 ---
 
 Full-stack application supporting the BIOTech Futures program.  
