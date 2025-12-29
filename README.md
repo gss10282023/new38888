@@ -7,12 +7,12 @@ An open-source friendly full-stack collaboration hub: passwordless login, role-b
 Live demo (frontend only): https://gss10282023.github.io/BIOTech_Futures_Hub/
 
 ## Preview
-[![Login](docs/assets/preview/login.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
-[![Dashboard](docs/assets/preview/dashboard.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
-[![Group Workspace](docs/assets/preview/group-workspace.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
-[![Resources Library](docs/assets/preview/resources-library.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
-[![Announcements](docs/assets/preview/announcements.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
-[![Admin Console](docs/assets/preview/admin-console.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Login](docs/assets/preview/login1.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Dashboard](docs/assets/preview/dashboard1.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Group Workspace](docs/assets/preview/group-workspace1.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Resources Library](docs/assets/preview/resources-library1.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Announcements](docs/assets/preview/announcements1.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
+[![Admin Console](docs/assets/preview/admin-console1.png)](https://gss10282023.github.io/BIOTech_Futures_Hub/)
 
 
 ---
